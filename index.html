@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kurt, Kuzu ve Lahana — Nehir Geçişi Bulmacası</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <!-- Üst Bilgi ve Kontrol Çubuğu -->
+    <header class="top-hud">
+      <div class="brand-group">
+        <div class="brand-emblem" aria-hidden="true">🛶</div>
+        <div class="brand-text">
+          <h1>Kurt, Kuzu ve Lahana</h1>
+          <span class="subtitle">Nehir Geçişi • Algoritma ve Mantık Bulmacası</span>
+        </div>
+      </div>
+
+      <div class="hud-stats">
+        <div class="stat-pill" title="Yapılan nehir geçişi sayısı (En az 7 hamlede çözülebilir)">
+          <span class="stat-label">Hamle</span>
+          <span id="moveCount" class="stat-value">0</span>
+          <span class="stat-hint">/ 7 ideal</span>
+        </div>
+        <div class="stat-pill bank-progress" title="Sağ kıyıya güvenle geçen karakter sayısı">
+          <span class="stat-label">Sağ Kıyı</span>
+          <span id="rightCount" class="stat-value">0 / 4</span>
+        </div>
+      </div>
+
+      <div class="hud-actions">
+        <button id="btnUndo" class="hud-btn" type="button" title="Son hamleyi geri al (Ctrl+Z)" disabled>
+          <span class="btn-ico">↩️</span>
+          <span class="btn-lbl">Geri Al</span>
+        </button>
+        <button id="btnHint" class="hud-btn hud-btn-amber" type="button" title="Algoritmik ipucu al">
+          <span class="btn-ico">💡</span>
+          <span class="btn-lbl">İpucu</span>
+        </button>
+        <button id="btnAlgo" class="hud-btn hud-btn-teal" type="button" title="Koşul-Sonuç (Eğer-İse) ve Hamle Günlüğü">
+          <span class="btn-ico">🧩</span>
+          <span class="btn-lbl">Algoritma</span>
+        </button>
+        <button id="btnRules" class="hud-btn" type="button" title="Oyun kurallarını gör">
+          <span class="btn-ico">📖</span>
+          <span class="btn-lbl">Kurallar</span>
+        </button>
+        <button id="btnRestart" class="hud-btn hud-btn-rose" type="button" title="Oyunu baştan başlat">
+          <span class="btn-ico">🔄</span>
+          <span class="btn-lbl">Yeniden</span>
+        </button>
+        <button id="btnSound" class="hud-btn hud-btn-icon" type="button" title="Sesleri aç / kapat" aria-label="Sesleri aç veya kapat">
+          <span id="soundIcon">🔊</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Ana Masalsı Oyun Sahnesi -->
+    <main class="stage-wrapper">
+      <div id="sceneContainer" class="scene-container">
+        <!-- SVG 2D Masalsı İllüstrasyon Katmanı (svg-art.js ile doldurulur) -->
+        <svg id="gameSvg" class="game-svg" viewBox="0 0 1280 680" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Kurt, Kuzu ve Lahana Nehir Geçişi Oyun Sahnesi"></svg>
+
+        <!-- Dinamik Su Dalgası İzi, Sıçrama, Toz ve Konfeti Canvas Katmanı -->
+        <canvas id="effectsCanvas" class="effects-canvas"></canvas>
+
+        <!-- Kıyı Etiketleri -->
+        <div class="bank-badge bank-badge-left">
+          <span class="badge-dot"></span> Sol Kıyı (Başlangıç)
+        </div>
+        <div class="bank-badge bank-badge-right">
+          <span class="badge-dot"></span> Sağ Kıyı (Hedef)
+        </div>
+
+        <!-- Canlı Bildirim / Koşul Balonu -->
+        <div id="toastBanner" class="toast-banner" role="status" aria-live="polite">
+          <span id="toastIcon" class="toast-icon">✨</span>
+          <span id="toastText" class="toast-text">Karakterlere tıklayarak sandala bindir, sonra "Karşıya Geç" butonuna bas!</span>
+        </div>
+
+        <!-- Alt Eylem ve Kontrol Rıhtımı -->
+        <div class="bottom-dock">
+          <div class="boat-capacity-card" aria-label="Sandal kapasitesi">
+            <div class="seat-chip" id="seatFarmerChip">
+              <span class="seat-role">Kaptan:</span>
+              <span id="seatFarmerVal" class="seat-val empty">Boş (Çiftçi gerekli)</span>
+            </div>
+            <div class="seat-divider"></div>
+            <div class="seat-chip" id="seatPassengerChip">
+              <span class="seat-role">Yolcu (En fazla 1):</span>
+              <span id="seatPassengerVal" class="seat-val empty">Boş</span>
+            </div>
+          </div>
+
+          <button id="btnCross" class="cross-btn" type="button">
+            <span class="cross-btn-shine"></span>
+            <span class="cross-btn-icon" id="crossIcon">🚣</span>
+            <span class="cross-btn-text" id="crossText">Karşıya Geç</span>
+            <span class="cross-btn-arrow" id="crossArrow">➜</span>
+          </button>
+        </div>
+
+        <!-- Açılır Algoritma ve Koşul-Sonuç (if-else) Paneli -->
+        <aside id="algoDrawer" class="algo-drawer" aria-hidden="true">
+          <div class="drawer-header">
+            <div>
+              <h2>🧩 Algoritma &amp; Koşul Paneli</h2>
+              <p>Her hamlede çalışan <code>EĞER - İSE</code> kuralları</p>
+            </div>
+            <button id="btnCloseAlgo" class="icon-close-btn" type="button" aria-label="Paneli kapat">✕</button>
+          </div>
+
+          <div class="drawer-section">
+            <h3>Aktif Koşul Kontrolleri</h3>
+            <ul class="rule-check-list">
+              <li id="ruleFarmer" class="rule-item rule-neutral">
+                <span class="rule-status">●</span>
+                <div>
+                  <strong>EĞER</strong> Çiftçi sandalda değilse<br />
+                  <span><strong>İSE</strong> sandal hareket edemez.</span>
+                </div>
+              </li>
+              <li id="ruleCapacity" class="rule-item rule-ok">
+                <span class="rule-status">✓</span>
+                <div>
+                  <strong>EĞER</strong> yolcu sayısı ≤ 1 ise<br />
+                  <span><strong>İSE</strong> sandal dengede kalır.</span>
+                </div>
+              </li>
+              <li id="ruleWolfSheep" class="rule-item rule-ok">
+                <span class="rule-status">✓</span>
+                <div>
+                  <strong>EĞER</strong> Çiftçi yokken Kurt + Kuzu yalnızsa<br />
+                  <span><strong>İSE</strong> Kurt kuzuyu yer!</span>
+                </div>
+              </li>
+              <li id="ruleSheepCabbage" class="rule-item rule-ok">
+                <span class="rule-status">✓</span>
+                <div>
+                  <strong>EĞER</strong> Çiftçi yokken Kuzu + Lahana yalnızsa<br />
+                  <span><strong>İSE</strong> Kuzu lahanayı yer!</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="drawer-section drawer-log-section">
+            <h3>Algoritma Adımların</h3>
+            <ol id="algoLogList" class="algo-log-list">
+              <li class="log-empty">Henüz karşıya geçiş yapılmadı. İlk hamleni planla!</li>
+            </ol>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <!-- Kural İhlali (Yanlış Hamle) Modalı -->
+  <div id="failModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="failTitle" hidden>
+    <div class="modal-card modal-fail">
+      <div id="failEmoji" class="modal-badge">🐺🐑</div>
+      <h2 id="failTitle">Eyvah! Kurt Kuzuyu Yedi!</h2>
+      <p id="failMessage" class="modal-desc"></p>
+      <div class="logic-callout">
+        <span class="logic-tag">KOŞUL - SONUÇ (EĞER - İSE)</span>
+        <p id="failLogicText"></p>
+      </div>
+      <div class="modal-actions">
+        <button id="btnFailUndo" class="primary-btn btn-emerald" type="button">↩️ Son Hamleyi Geri Al</button>
+        <button id="btnFailRestart" class="secondary-btn" type="button">🔄 Baştan Başla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kazanma Kutlama Modalı -->
+  <div id="winModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="winTitle" hidden>
+    <div class="modal-card modal-win">
+      <div class="win-stars" id="winStars" aria-label="Yıldız derecesi">⭐⭐⭐</div>
+      <h2 id="winTitle">Tebrikler! Herkesi Güvenle Geçirdin!</h2>
+      <p id="winMessage" class="modal-desc"></p>
+      <div class="win-metrics">
+        <div class="metric-box">
+          <span class="metric-lbl">Toplam Hamle</span>
+          <strong id="winMoveCount" class="metric-val">7</strong>
+        </div>
+        <div class="metric-box">
+          <span class="metric-lbl">En Kısa Çözüm</span>
+          <strong class="metric-val">7</strong>
+        </div>
+        <div class="metric-box">
+          <span class="metric-lbl">Seviye</span>
+          <strong id="winRank" class="metric-val">Usta!</strong>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btnWinReplay" class="primary-btn btn-emerald" type="button">🎉 Tekrar Oyna</button>
+        <button id="btnWinShowAlgo" class="secondary-btn" type="button">🧩 Çözüm Adımlarımı Gör</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kurallar / Nasıl Oynanır Modalı -->
+  <div id="rulesModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="rulesTitle" hidden>
+    <div class="modal-card modal-rules">
+      <button id="btnCloseRulesTop" class="icon-close-btn modal-close-x" type="button" aria-label="Kapat">✕</button>
+      <div class="modal-badge">📖</div>
+      <h2 id="rulesTitle">Nasıl Oynanır?</h2>
+      <p class="modal-desc">
+        <strong>Amacın:</strong> Sol kıyıdaki <strong>Çiftçi, Kurt, Kuzu ve Lahanayı</strong> kuralları bozmadan sağ kıyıya geçirmek!
+      </p>
+      <ul class="rules-grid">
+        <li>
+          <span class="r-ico">🧑‍🌾</span>
+          <div><strong>Sadece Çiftçi Kürek Çeker:</strong> Çiftçi sandalda olmadan sandal karşıya geçemez.</div>
+        </li>
+        <li>
+          <span class="r-ico">🛶</span>
+          <div><strong>En Fazla 1 Yolcu:</strong> Sandala Çiftçi'nin yanında en fazla <strong>1 yolcu</strong> (Kurt, Kuzu veya Lahana) binebilir.</div>
+        </li>
+        <li>
+          <span class="r-ico">🐺🐑</span>
+          <div><strong>Kurt ile Kuzu Yalnız Kalamaz:</strong> Çiftçi o kıyıda değilse Kurt, Kuzuyu yer!</div>
+        </li>
+        <li>
+          <span class="r-ico">🐑🥬</span>
+          <div><strong>Kuzu ile Lahana Yalnız Kalamaz:</strong> Çiftçi o kıyıda değilse Kuzu, Lahanayı yer!</div>
+        </li>
+      </ul>
+      <div class="rules-tip">
+        💡 <strong>İpucu:</strong> Karakterlerin üzerine tıklayarak onları sandala bindirip indirebilir, ardından <strong>"Karşıya Geç"</strong> butonuna basabilirsin. En kısa çözüm <strong>7 hamle</strong> sürer!
+      </div>
+      <div class="modal-actions">
+        <button id="btnStartPlay" class="primary-btn btn-emerald" type="button">🚀 Haydi Başlayalım!</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="svg-art.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
