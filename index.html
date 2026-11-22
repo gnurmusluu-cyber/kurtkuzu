@@ -163,6 +163,10 @@
             <ol id="algoLogList" class="algo-log-list">
               <li class="log-empty">Henüz karşıya geçiş yapılmadı. İlk hamleni planla!</li>
             </ol>
+            <div id="drawerOptimalSection" class="drawer-optimal-box" hidden>
+              <h4>✨ En Kısa Çözüm (<span id="drawerOptimalCount">7</span> Adım)</h4>
+              <ol id="drawerOptimalList" class="optimal-steps-list compact"></ol>
+            </div>
           </div>
         </aside>
       </div>
@@ -192,6 +196,7 @@
       <div class="win-stars" id="winStars" aria-label="Yıldız derecesi">⭐⭐⭐</div>
       <h2 id="winTitle">Tebrikler! Seviyeyi Tamamladın!</h2>
       <p id="winMessage" class="modal-desc"></p>
+      <div id="winTotalProgress" class="win-total-progress" hidden></div>
       <div class="win-metrics">
         <div class="metric-box">
           <span class="metric-lbl">Senin Algoritman</span>
@@ -206,6 +211,18 @@
           <strong id="winRank" class="metric-val">Optimal!</strong>
         </div>
       </div>
+
+      <!-- En Kısa Çözüm Adımları Görüntüleyici -->
+      <div class="optimal-solution-box">
+        <button id="btnToggleOptimal" class="optimal-toggle-btn" type="button" aria-expanded="true">
+          <span id="optimalToggleLabel">✨ En Kısa Çözüm Adımları (İdeal Algoritma)</span>
+          <span id="optimalToggleChevron" class="opt-chevron">▾</span>
+        </button>
+        <div id="optimalStepsWrap" class="optimal-steps-wrap">
+          <ol id="winOptimalSteps" class="optimal-steps-list"></ol>
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button id="btnNextLevel" class="primary-btn btn-indigo" type="button">🚀 Sonraki Seviyeye Geç ➜</button>
         <button id="btnWinReplay" class="primary-btn btn-emerald" type="button">🔄 Tekrar Dene</button>

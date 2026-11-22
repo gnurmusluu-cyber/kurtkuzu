@@ -172,8 +172,10 @@
   let activeTimeouts = [];
   let lastConditionOverride = null; // { status: 'danger'|'warn', stateLabel, expr }
 
-  // Her seviye için BFS ile matematiksel en kısa adım sayısını hesapla
+  // Her seviye için BFS ile matematiksel en kısa adım sayısını ve yolunu hesapla
   const idealStepsByLevel = {};
+  const idealPathByLevel = {};
+  const STORAGE_KEY = 'kurt_kuzu_progress_v1';
 
   // Görsel / animasyon konumları
   const boatVisual = {
@@ -211,11 +213,37 @@
   let elSeatFarmerVal, elSeatPassengerRole, elSeatPassengerVal, elDockWeightBarWrap, elDockWeightFill;
   let btnCross, crossText, btnUndo, btnHint, btnAlgo, btnRules, btnRestart, btnSound, soundIcon;
   let algoDrawer, btnCloseAlgo, algoLogList, elRuleCheckList;
+  let drawerOptimalSection, drawerOptimalCount, drawerOptimalList;
   let elLiveCondBox, elLiveCondState, elLiveCondExpr, elLiveCondVars;
   let failModal, failEmoji, failTitle, failMessage, failLogicText, btnFailUndo, btnFailRestart;
-  let winModal, winStars, winTitle, winMessage, winMoveCount, winIdealCount, winRank;
+  let winModal, winStars, winTitle, winMessage, winTotalProgress, winMoveCount, winIdealCount, winRank;
+  let btnToggleOptimal, optimalToggleLabel, optimalStepsWrap, winOptimalSteps;
   let btnNextLevel, btnWinReplay, btnWinShowAlgo;
   let rulesModal, rulesBadge, rulesTitle, rulesSummary, rulesGrid, rulesTip, btnStartPlay, btnCloseRulesTop;
+
+  function loadProgress() {
+    try {
+      const raw = window.localStorage && window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          completedLevels = parsed;
+        }
+      }
+    } catch (_) {
+      // Depolama erişimi kısıtlıysa sessizce devam et
+    }
+  }
+
+  function saveProgress() {
+    try {
+      if (window.localStorage) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(completedLevels));
+      }
+    } catch (_) {
+      // Sessizce geç
+    }
+  }
 
   function getLevel() {
     return LEVELS[currentLevelId];
@@ -260,12 +288,15 @@
 
   // ==================== BAŞLATMA ====================
   function init() {
-    // 3 seviyenin gerçek en kısa adım sayısını BFS ile doğrula
+    loadProgress();
+
+    // 3 seviyenin gerçek en kısa adım sayısını ve çözüm yolunu BFS ile doğrula
     [1, 2, 3].forEach((lvlId) => {
       const startBanks = {};
       LEVELS[lvlId].chars.forEach((c) => { startBanks[c] = 'left'; });
       const res = solveLevelBFS(lvlId, 'left', startBanks);
       idealStepsByLevel[lvlId] = res ? res.steps : 7;
+      idealPathByLevel[lvlId] = res ? res.path : [];
     });
 
     svgEl = document.getElementById('gameSvg');
@@ -321,6 +352,9 @@
     btnCloseAlgo = document.getElementById('btnCloseAlgo');
     algoLogList = document.getElementById('algoLogList');
     elRuleCheckList = document.getElementById('ruleCheckList');
+    drawerOptimalSection = document.getElementById('drawerOptimalSection');
+    drawerOptimalCount = document.getElementById('drawerOptimalCount');
+    drawerOptimalList = document.getElementById('drawerOptimalList');
     elLiveCondBox = document.getElementById('liveConditionBox');
     elLiveCondState = document.getElementById('liveCondState');
     elLiveCondExpr = document.getElementById('liveCondExpr');
@@ -338,9 +372,14 @@
     winStars = document.getElementById('winStars');
     winTitle = document.getElementById('winTitle');
     winMessage = document.getElementById('winMessage');
+    winTotalProgress = document.getElementById('winTotalProgress');
     winMoveCount = document.getElementById('winMoveCount');
     winIdealCount = document.getElementById('winIdealCount');
     winRank = document.getElementById('winRank');
+    btnToggleOptimal = document.getElementById('btnToggleOptimal');
+    optimalToggleLabel = document.getElementById('optimalToggleLabel');
+    optimalStepsWrap = document.getElementById('optimalStepsWrap');
+    winOptimalSteps = document.getElementById('winOptimalSteps');
     btnNextLevel = document.getElementById('btnNextLevel');
     btnWinReplay = document.getElementById('btnWinReplay');
     btnWinShowAlgo = document.getElementById('btnWinShowAlgo');
@@ -383,6 +422,18 @@
     btnCloseRulesTop.addEventListener('click', () => {
       sound.playClick();
       rulesModal.hidden = true;
+    });
+    rulesModal.addEventListener('click', (e) => {
+      if (e.target === rulesModal) {
+        sound.playClick();
+        rulesModal.hidden = true;
+      }
+    });
+    btnToggleOptimal.addEventListener('click', () => {
+      sound.playClick();
+      const expanded = btnToggleOptimal.getAttribute('aria-expanded') === 'true';
+      btnToggleOptimal.setAttribute('aria-expanded', String(!expanded));
+      optimalStepsWrap.hidden = expanded;
     });
     btnRestart.addEventListener('click', () => {
       sound.playClick();
@@ -437,7 +488,8 @@
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // 1. Seviyeyi yükle
+    // Kaydedilmiş yıldız/seviye rozetlerini yansıt ve 1. Seviyeyi yükle
+    updateLevelDoneBadges();
     loadLevel(1);
 
     // 60 FPS animasyon döngüsünü başlat
@@ -464,6 +516,7 @@
 
     failModal.hidden = true;
     winModal.hidden = true;
+    if (drawerOptimalSection) drawerOptimalSection.hidden = true;
 
     // SVG karakterlerini seviyeye göre oluştur ve bağla
     charactersLayerEl.innerHTML = window.SceneArt.buildCharactersForLevel(levelId);
@@ -1090,21 +1143,36 @@
       extra = `Hedefe ulaştın! Şimdi gereksiz adımları azaltıp ${ideal} adımlık ideal çözümü hedefle.`;
     }
 
-    // Tamamlanan seviye kaydı (en iyi skor saklanır)
+    // Tamamlanan seviye kaydı (en iyi skor localStorage'a da kaydedilir)
     const prev = completedLevels[lvl.id];
     if (!prev || m < prev.bestMoves) {
       completedLevels[lvl.id] = { bestMoves: m, stars, starCount };
+      saveProgress();
     }
     updateLevelDoneBadges();
 
+    // Genel 3 seviye ilerleme özeti
+    const doneCount = [1, 2, 3].filter((id) => completedLevels[id]).length;
+    const totalStars = [1, 2, 3].reduce((acc, id) => acc + (completedLevels[id] ? completedLevels[id].starCount : 0), 0);
+    winTotalProgress.hidden = false;
+    winTotalProgress.textContent = doneCount === 3
+      ? `🏆 Tüm Seviyeler Tamamlandı (3/3) • Toplam Yıldız: ⭐ ${totalStars} / 9`
+      : `🏅 Genel İlerleme: ${doneCount} / 3 Seviye • Toplam Yıldız: ⭐ ${totalStars} / 9`;
+
     winStars.textContent = stars;
-    winTitle.textContent = lvl.id === 3
+    winTitle.textContent = doneCount === 3 && lvl.id === 3
       ? '🏆 Tüm Seviyeleri Tamamladın!'
       : `Tebrikler! ${lvl.shortTitle} Tamamlandı!`;
     winMessage.textContent = `Tebrikler! ${m} adımda tamamladın. En kısa algoritma: ${ideal} adım. ${stars} ${extra}`;
     winMoveCount.textContent = `${m} Adım`;
     winIdealCount.textContent = `${ideal} Adım`;
     winRank.textContent = rank;
+
+    // En kısa çözüm adımlarını (İdeal Algoritma) hem kazanma penceresinde hem algoritma günlüğünde göster
+    renderOptimalSolution(lvl.id);
+    optimalToggleLabel.textContent = `✨ En Kısa Çözüm Adımları (${ideal} Adım — İdeal Algoritma)`;
+    btnToggleOptimal.setAttribute('aria-expanded', 'true');
+    optimalStepsWrap.hidden = false;
 
     // Sonraki Seviye butonu kontrolü
     if (lvl.id < 3) {
@@ -1121,6 +1189,35 @@
       isBusy = false;
       winModal.hidden = false;
     }, 1020);
+  }
+
+  function renderOptimalSolution(levelId) {
+    const lvl = LEVELS[levelId];
+    const path = idealPathByLevel[levelId] || [];
+
+    const itemsHtml = path.map((step, idx) => {
+      const crewText = step.passengers.length > 0
+        ? `🧑‍🌾 Çiftçi + ${step.passengers.map((pId) => `${lvl.meta[pId].emoji} ${lvl.meta[pId].name}`).join(' + ')}`
+        : '🧑‍🌾 Sadece Çiftçi';
+      const kgTag = lvl.capacityMode === 'weight'
+        ? ` <strong>(${lvl.meta.farmer.weight + step.passengers.reduce((s, pId) => s + lvl.meta[pId].weight, 0)} kg)</strong>`
+        : '';
+      const dirClass = step.to === 'right' ? 'to-right' : 'to-left';
+      const dirText = step.to === 'right' ? 'Sağ Kıyıya ➜' : '⬅ Sol Kıyıya';
+
+      return `
+        <li>
+          <span class="opt-step-idx">${idx + 1}</span>
+          <span class="opt-step-main">${crewText}${kgTag}</span>
+          <span class="opt-step-dir ${dirClass}">${dirText}</span>
+        </li>
+      `;
+    }).join('');
+
+    winOptimalSteps.innerHTML = itemsHtml;
+    drawerOptimalList.innerHTML = itemsHtml;
+    drawerOptimalCount.textContent = String(path.length);
+    drawerOptimalSection.hidden = path.length === 0;
   }
 
   function updateLevelDoneBadges() {
@@ -1150,6 +1247,7 @@
     clearCharacterAnimStates();
     confettiActive = false;
     lastConditionOverride = null;
+    if (drawerOptimalSection) drawerOptimalSection.hidden = true;
 
     state = historyStack.pop();
     gameEnded = false;
@@ -1202,17 +1300,24 @@
     const move = solution.firstMove;
     const destText = move.to === 'right' ? 'sağ kıyıya' : 'sol kıyıya';
 
+    // Sandalda gereksiz / yanlış yolcu varsa önce onu indir uyarısı ekle
+    const extraInBoat = getPassengersInBoat().filter((pId) => !move.passengers.includes(pId));
+    const disembarkNote = extraInBoat.length > 0
+      ? ` (Önce sandaldaki ${extraInBoat.map((id) => lvl.meta[id].name).join(' ve ')} karakterini indir!)`
+      : '';
+
     pulseCharacter('farmer');
     move.passengers.forEach((pId) => pulseCharacter(pId));
+    extraInBoat.forEach((pId) => pulseCharacter(pId));
 
     if (move.passengers.length === 0) {
-      showToast('💡', `İpucu (${solution.steps} adım kaldı): Çiftçi tek başına ${destText} dönebilir!`, 'hint');
+      showToast('💡', `İpucu (${solution.steps} adım kaldı): Çiftçi tek başına ${destText} dönebilir!${disembarkNote}`, 'hint');
     } else {
       const pNames = move.passengers.map((pId) => lvl.meta[pId].name).join(' ve ');
       const kgInfo = lvl.capacityMode === 'weight'
-        ? ` (${60 + move.passengers.reduce((s, p) => s + lvl.meta[p].weight, 0)} kg)`
+        ? ` (${lvl.meta.farmer.weight + move.passengers.reduce((s, p) => s + lvl.meta[p].weight, 0)} kg)`
         : '';
-      showToast('💡', `İpucu (${solution.steps} adım kaldı): Çiftçi, ${pNames}${kgInfo} ile ${destText} geçmeyi dene!`, 'hint');
+      showToast('💡', `İpucu (${solution.steps} adım kaldı): Çiftçi, ${pNames}${kgInfo} ile ${destText} geçmeyi dene!${disembarkNote}`, 'hint');
     }
   }
 
@@ -1223,9 +1328,9 @@
     const encode = (side, map) => `${side}|${chars.map((c) => (map[c] === 'right' ? '1' : '0')).join('')}`;
     const isGoal = (map) => chars.every((c) => map[c] === 'right');
 
-    if (isGoal(startBanks)) return { steps: 0, firstMove: null };
+    if (isGoal(startBanks)) return { steps: 0, firstMove: null, path: [] };
 
-    const queue = [{ side: startSide, map: { ...startBanks }, steps: 0, firstMove: null }];
+    const queue = [{ side: startSide, map: { ...startBanks }, path: [] }];
     const visited = new Set([encode(startSide, startBanks)]);
 
     while (queue.length > 0) {
@@ -1260,12 +1365,11 @@
         if (visited.has(key)) continue;
         visited.add(key);
 
-        const moveInfo = cur.firstMove || { passengers: chosen, to: targetSide };
-        const nextSteps = cur.steps + 1;
+        const nextPath = cur.path.concat([{ passengers: chosen, to: targetSide }]);
         if (isGoal(nextMap)) {
-          return { steps: nextSteps, firstMove: moveInfo };
+          return { steps: nextPath.length, firstMove: nextPath[0], path: nextPath };
         }
-        queue.push({ side: targetSide, map: nextMap, steps: nextSteps, firstMove: moveInfo });
+        queue.push({ side: targetSide, map: nextMap, path: nextPath });
       }
     }
     return null;
@@ -1344,7 +1448,12 @@
 
       if (boatSeatHints) {
         const full = farmerAboard && passengers.length >= lvl.maxPassengers;
-        boatSeatHints.style.opacity = full ? '0' : '0.72';
+        boatSeatHints.style.opacity = full ? '0' : '0.78';
+        if (seatHintCaptain) seatHintCaptain.style.opacity = farmerAboard ? '0' : '1';
+        if (seatHintP1) seatHintP1.style.opacity = passengers.length >= 1 ? '0' : '1';
+        if (seatHintP2 && lvl.maxPassengers >= 2) {
+          seatHintP2.style.opacity = passengers.length >= 2 ? '0' : '1';
+        }
       }
       boatVisual.sinkY = 0;
     }
@@ -1448,8 +1557,8 @@
       const ls = countTypeOnSide('left', 'sheep');
       const rw = countTypeOnSide('right', 'wolf');
       const rs = countTypeOnSide('right', 'sheep');
-      chips.push({ text: `Sol(K:${lw}, Kz:${ls})`, danger: state.locations.farmer !== 'left' && ls > 0 && lw > ls });
-      chips.push({ text: `Sağ(K:${rw}, Kz:${rs})`, danger: state.locations.farmer !== 'right' && rs > 0 && rw > rs });
+      chips.push({ text: `Sol(🐺${lw}, 🐑${ls})`, danger: state.locations.farmer !== 'left' && ls > 0 && lw > ls });
+      chips.push({ text: `Sağ(🐺${rw}, 🐑${rs})`, danger: state.locations.farmer !== 'right' && rs > 0 && rw > rs });
       chips.push({ text: `Yolcu=${passengers.length}/${lvl.maxPassengers}`, danger: false });
     } else if (lvl.id === 3) {
       chips.push({ text: `Ağırlık=${totalKg}/${lvl.maxWeight} kg`, danger: isOverWeight });
