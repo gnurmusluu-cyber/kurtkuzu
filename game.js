@@ -1,7 +1,6 @@
 /* =========================================================
-   game.js — Kurt, Kuzu ve Lahana (Nehir Geçişi) Oyun Motoru
-   Animasyonlar, Canvas Su Dalgası & Konfeti, Koşul-Sonuç (if-else)
-   Mantığı, BFS İpucu Çözücü ve Etkileşim Yönetimi
+   game.js — Kurt, Kuzu ve Lahana (Nehir Geçişi)
+   3 Aşamalı 9. Sınıf Algoritma & Optimizasyon Oyun Motoru
    ========================================================= */
 (function () {
   'use strict';
@@ -9,74 +8,187 @@
   const SVG_W = 1280;
   const SVG_H = 680;
 
-  const CHAR_IDS = ['farmer', 'wolf', 'sheep', 'cabbage'];
-
-  const CHAR_META = {
-    farmer:  { name: 'Çiftçi', emoji: '🧑‍🌾', role: 'captain' },
-    wolf:    { name: 'Kurt',   emoji: '🐺',  role: 'passenger' },
-    sheep:   { name: 'Kuzu',   emoji: '🐑',  role: 'passenger' },
-    cabbage: { name: 'Lahana', emoji: '🥬',  role: 'passenger' }
-  };
-
-  // Kıyı koordinatları (SVG viewBox 1280x680)
-  const BANK_SLOTS = {
-    left: {
-      farmer:  { x: 315, y: 468 },
-      wolf:    { x: 108, y: 458 },
-      sheep:   { x: 215, y: 496 },
-      cabbage: { x: 148, y: 556 }
-    },
-    right: {
-      farmer:  { x: 965, y: 468 },
-      sheep:   { x: 1065, y: 496 },
-      wolf:    { x: 1172, y: 458 },
-      cabbage: { x: 1132, y: 556 }
-    }
-  };
-
-  // Sandal iskele konumları ve iç koltuk ofsetleri
+  // Sandal iskele konumları
   const BOAT_DOCK = {
     left:  { x: 492, y: 514 },
     right: { x: 788, y: 514 }
   };
 
-  const BOAT_SEAT_OFFSET = {
-    captain:   { dx: -36, dy: 2 },
-    passenger: { dx: 36,  dy: -2 }
+  // ==================== 3 SEVİYE TANIMLARI ====================
+  const LEVELS = {
+    1: {
+      id: 1,
+      shortTitle: '1. Seviye',
+      name: '1. Seviye: Temel Koşul Yapısı (EĞER - İSE)',
+      topic: 'Temel Koşul Yapısı (EĞER - İSE)',
+      badge: '📖',
+      capacityMode: 'count',
+      maxPassengers: 1,
+      maxWeight: null,
+      chars: ['farmer', 'wolf', 'sheep', 'cabbage'],
+      meta: {
+        farmer:  { name: 'Çiftçi', emoji: '🧑‍🌾', type: 'farmer',  weight: 0 },
+        wolf:    { name: 'Kurt',   emoji: '🐺',  type: 'wolf',    weight: 0 },
+        sheep:   { name: 'Kuzu',   emoji: '🐑',  type: 'sheep',   weight: 0 },
+        cabbage: { name: 'Lahana', emoji: '🥬',  type: 'cabbage', weight: 0 }
+      },
+      slots: {
+        left: {
+          farmer:  { x: 315, y: 468 },
+          wolf:    { x: 108, y: 458 },
+          sheep:   { x: 215, y: 496 },
+          cabbage: { x: 148, y: 556 }
+        },
+        right: {
+          farmer:  { x: 965, y: 468 },
+          sheep:   { x: 1065, y: 496 },
+          wolf:    { x: 1172, y: 458 },
+          cabbage: { x: 1132, y: 556 }
+        }
+      },
+      rulesSummary: 'Sol kıyıdaki <strong>Çiftçi, Kurt, Kuzu ve Lahanayı</strong> temel <code>EĞER - İSE</code> koşullarını ihlal etmeden sağ kıyıya geçir!',
+      rulesList: [
+        { ico: '🧑‍🌾', title: 'Kaptan Şartı:', text: 'Çiftçi sandalda olmadan sandal hareket edemez.' },
+        { ico: '🛶', title: 'Kapasite (En Fazla 1 Yolcu):', text: 'Sandala Çiftçi\'nin yanında en fazla 1 yolcu binebilir.' },
+        { ico: '🐺🐑', title: 'VE Koşulu 1:', text: 'Çiftçi aynı kıyıda değilken Kurt ile Kuzu yalnız kalamaz.' },
+        { ico: '🐑🥬', title: 'VE Koşulu 2:', text: 'Çiftçi aynı kıyıda değilken Kuzu ile Lahana yalnız kalamaz.' }
+      ],
+      ruleCards: [
+        { id: 'rFarmer', cond: 'EĞER', expr: 'Çiftçi sandalda değilse', res: 'sandal hareket edemez.' },
+        { id: 'rCap',    cond: 'EĞER', expr: 'yolcuSayısı <= 1 ise', res: 'sandal dengede kalır.' },
+        { id: 'rWolf',   cond: 'EĞER', expr: '(Çiftçi != Kıyı) VE (Kurt == Kuzu)', res: 'Kurt kuzuyu yer!' },
+        { id: 'rCab',    cond: 'EĞER', expr: '(Çiftçi != Kıyı) VE (Kuzu == Lahana)', res: 'Kuzu lahanayı yer!' }
+      ],
+      defaultFormula: 'EĞER (Çiftçi != Kıyı) VE ((Kurt == Kuzu) VEYA (Kuzu == Lahana)) İSE → Hata'
+    },
+
+    2: {
+      id: 2,
+      shortTitle: '2. Seviye',
+      name: '2. Seviye: Çoklu Değişken ve Karşılaştırma (>)',
+      topic: 'Çoklu Değişken ve Karşılaştırma (BÜYÜKTÜR >)',
+      badge: '⚖️',
+      capacityMode: 'count',
+      maxPassengers: 2,
+      maxWeight: null,
+      chars: ['farmer', 'wolf1', 'wolf2', 'sheep1', 'sheep2'],
+      meta: {
+        farmer: { name: 'Çiftçi', emoji: '🧑‍🌾', type: 'farmer', weight: 0 },
+        wolf1:  { name: 'Kurt 1', emoji: '🐺',  type: 'wolf',   weight: 0 },
+        wolf2:  { name: 'Kurt 2', emoji: '🐺',  type: 'wolf',   weight: 0 },
+        sheep1: { name: 'Kuzu 1', emoji: '🐑',  type: 'sheep',  weight: 0 },
+        sheep2: { name: 'Kuzu 2', emoji: '🐑',  type: 'sheep',  weight: 0 }
+      },
+      slots: {
+        left: {
+          wolf1:  { x: 92,  y: 446 },
+          wolf2:  { x: 184, y: 454 },
+          sheep1: { x: 108, y: 544 },
+          sheep2: { x: 212, y: 546 },
+          farmer: { x: 312, y: 472 }
+        },
+        right: {
+          farmer: { x: 968,  y: 472 },
+          wolf1:  { x: 1094, y: 454 },
+          wolf2:  { x: 1188, y: 446 },
+          sheep1: { x: 1068, y: 546 },
+          sheep2: { x: 1172, y: 544 }
+        }
+      },
+      rulesSummary: '<strong>Çiftçi, 2 Kurt ve 2 Kuzuyu</strong> değişken sayılarını takip ederek sağ kıyıya geçir. Bu seviyede sandal daha geniş!',
+      rulesList: [
+        { ico: '🛶', title: 'Geniş Kapasite:', text: 'Sandala Çiftçi + en fazla <strong>2 yolcu</strong> (toplam 3 kişi) binebilir.' },
+        { ico: '📊', title: 'Karşılaştırma Operatörü (>):', text: 'Çiftçi o kıyıda değilken herhangi bir kıyıda <strong>Kurt Sayısı > Kuzu Sayısı</strong> olursa (ve kuzu varsa) kurtlar kuzuları yer!' },
+        { ico: '⚖️', title: 'Eşitlik Güvenlidir (==):', text: 'Eşit sayıda kurt ve kuzu (örneğin 1 Kurt ve 1 Kuzu) Çiftçi olmadan yan yana kalabilir.' },
+        { ico: '🎯', title: 'Algoritma Optimizasyonu:', text: 'En az adım sayısını hedefleyerek 3 yıldız kazan!' }
+      ],
+      ruleCards: [
+        { id: 'rFarmer', cond: 'EĞER', expr: 'Çiftçi sandalda değilse', res: 'sandal hareket edemez.' },
+        { id: 'rCap',    cond: 'EĞER', expr: 'yolcuSayısı <= 2 ise', res: 'sandal (maks. 3 kişi) hareket edebilir.' },
+        { id: 'rCount',  cond: 'EĞER', expr: '(Çiftçi != Kıyı) VE (Kuzu > 0) VE (Kurt > Kuzu)', res: 'Kurtlar kuzuları yer!' }
+      ],
+      defaultFormula: 'EĞER (Çiftçi != Kıyı) VE (KuzuSayısı > 0) VE (KurtSayısı > KuzuSayısı) İSE → Hata'
+    },
+
+    3: {
+      id: 3,
+      shortTitle: '3. Seviye',
+      name: '3. Seviye: Aritmetik Kısıt ve Optimizasyon (≤)',
+      topic: 'Aritmetik Kısıt ve Optimizasyon (TOPLAM ≤ LİMİT)',
+      badge: '🧮',
+      capacityMode: 'weight',
+      maxPassengers: 4,
+      maxWeight: 100,
+      chars: ['farmer', 'wolf', 'sheep', 'cabbage', 'feed'],
+      meta: {
+        farmer:  { name: 'Çiftçi',     emoji: '🧑‍🌾', type: 'farmer',  weight: 60 },
+        wolf:    { name: 'Kurt',       emoji: '🐺',  type: 'wolf',    weight: 30 },
+        sheep:   { name: 'Kuzu',       emoji: '🐑',  type: 'sheep',   weight: 20 },
+        cabbage: { name: 'Lahana',     emoji: '🥬',  type: 'cabbage', weight: 10 },
+        feed:    { name: 'Yem Çuvalı', emoji: '🌾',  type: 'feed',    weight: 40 }
+      },
+      slots: {
+        left: {
+          wolf:    { x: 96,  y: 444 },
+          sheep:   { x: 204, y: 468 },
+          feed:    { x: 102, y: 546 },
+          cabbage: { x: 212, y: 554 },
+          farmer:  { x: 314, y: 470 }
+        },
+        right: {
+          farmer:  { x: 966,  y: 470 },
+          sheep:   { x: 1076, y: 468 },
+          wolf:    { x: 1184, y: 444 },
+          cabbage: { x: 1068, y: 554 },
+          feed:    { x: 1178, y: 546 }
+        }
+      },
+      rulesSummary: 'Ağırlıkları topla ve <strong>100 kg</strong> limitini aşmadan tüm karakterleri (Yem Çuvalı dahil) en kısa algoritmayla karşıya geçir!',
+      rulesList: [
+        { ico: '⚖️', title: 'Aritmetik Kısıt (TOPLAM ≤ 100 kg):', text: 'Kişi sayısı sınırı yok! Ancak Çiftçi (60 kg) ile birlikte toplam ağırlık <strong>100 kg</strong>\'ı geçerse sandal hareket etmez.' },
+        { ico: '➕', title: 'Kombinasyon Stratejisi:', text: 'Çiftçi\'nin yanına en fazla 40 kg alabilirsin: sadece <strong>Yem Çuvalı (40 kg)</strong> VEYA <strong>Kurt (30) + Lahana (10)</strong>!' },
+        { ico: '🐺🐑🥬', title: 'Besin Zinciri Kuralları:', text: '1. Seviye kuralları geçerlidir (Kurt-Kuzu ve Kuzu-Lahana yalnız kalamaz). <strong>Yem Çuvalı</strong> herkesle güvendedir.' },
+        { ico: '🏆', title: 'Verimlilik Hedefi:', text: 'Aynı seferde birden fazla yük taşıyarak adım sayını optimize et!' }
+      ],
+      ruleCards: [
+        { id: 'rFarmer', cond: 'EĞER', expr: 'Çiftçi (60 kg) sandalda değilse', res: 'sandal hareket edemez.' },
+        { id: 'rWeight', cond: 'EĞER', expr: 'ToplamAğırlık <= 100 kg ise', res: 'sandal güvenle yüzebilir.' },
+        { id: 'rWolf',   cond: 'EĞER', expr: '(Çiftçi != Kıyı) VE (Kurt == Kuzu)', res: 'Kurt kuzuyu yer!' },
+        { id: 'rCab',    cond: 'EĞER', expr: '(Çiftçi != Kıyı) VE (Kuzu == Lahana)', res: 'Kuzu lahanayı yer!' }
+      ],
+      defaultFormula: 'EĞER (ToplamAğırlık <= 100) VE (BesinZinciriGüvenli) İSE → Geçiş İzni'
+    }
   };
 
   // ==================== OYUN DURUMU ====================
   const sound = new window.SoundManager();
 
-  let state = createInitialState();
-  let historyStack = []; // Her başarılı veya başarısız geçiş öncesi anlık görüntü
-  let isBusy = false;    // Animasyon veya modal kilidi
-  let gameEnded = false; // Kazanma veya kural ihlali aktif mi
+  let currentLevelId = 1;
+  let state = createInitialState(1);
+  let historyStack = [];
+  let completedLevels = {}; // { [levelId]: { bestMoves, stars } }
+  let isBusy = false;
+  let gameEnded = false;
   let activeTimeouts = [];
+  let lastConditionOverride = null; // { status: 'danger'|'warn', stateLabel, expr }
+
+  // Her seviye için BFS ile matematiksel en kısa adım sayısını hesapla
+  const idealStepsByLevel = {};
 
   // Görsel / animasyon konumları
   const boatVisual = {
     x: BOAT_DOCK.left.x,
     y: BOAT_DOCK.left.y,
     bobY: 0,
+    sinkY: 0,
     tilt: 0,
     oarAngle: -18,
-    crossing: null // { fromX, toX, startTime, duration, dir, onComplete }
+    crossing: null
   };
 
-  const charVisuals = {};
-  CHAR_IDS.forEach((id) => {
-    const slot = BANK_SLOTS.left[id];
-    charVisuals[id] = {
-      x: slot.x,
-      y: slot.y,
-      scaleX: 1,
-      scaleY: 1,
-      hop: null // { fromX, fromY, toX, toY, startTime, duration, toBoat, onComplete }
-    };
-  });
+  let charVisuals = {};
 
-  // Canvas parçacıkları: su dalgası izi, sıçrama, toz/yıldız ve konfeti
+  // Canvas parçacıkları
   const wakes = [];
   const splashes = [];
   const sparkles = [];
@@ -86,36 +198,45 @@
   let lastSparkleEmit = 0;
 
   // DOM referansları
-  let svgEl, canvasEl, ctx;
-  let boatBackGroup, boatFrontGroup, boatBackShake, boatFrontShake, boatOar, boatSeatHints;
-  const charEls = {};
-  const bubbleEls = {};
+  let svgEl, canvasEl, ctx, charactersLayerEl;
+  let boatBackGroup, boatFrontGroup, boatBackShake, boatFrontShake, boatOar;
+  let boatSeatHints, seatHintCaptain, seatHintP1, seatHintP2;
+  let boatWeightBar, boatWeightText, boatWeightFillRect;
+  let charEls = {};
+  let bubbleEls = {};
 
-  let elMoveCount, elRightCount, elToastBanner, elToastIcon, elToastText;
-  let elSeatFarmerVal, elSeatPassengerVal;
+  let elBrandSubtitle, elMoveCount, elIdealHint, elRightCount;
+  let elLevelObjectiveText, elLeftBankSummary, elRightBankSummary;
+  let elToastBanner, elToastIcon, elToastText;
+  let elSeatFarmerVal, elSeatPassengerRole, elSeatPassengerVal, elDockWeightBarWrap, elDockWeightFill;
   let btnCross, crossText, btnUndo, btnHint, btnAlgo, btnRules, btnRestart, btnSound, soundIcon;
-  let algoDrawer, btnCloseAlgo, algoLogList;
-  let ruleFarmer, ruleCapacity, ruleWolfSheep, ruleSheepCabbage;
+  let algoDrawer, btnCloseAlgo, algoLogList, elRuleCheckList;
+  let elLiveCondBox, elLiveCondState, elLiveCondExpr, elLiveCondVars;
   let failModal, failEmoji, failTitle, failMessage, failLogicText, btnFailUndo, btnFailRestart;
-  let winModal, winStars, winMessage, winMoveCount, winRank, btnWinReplay, btnWinShowAlgo;
-  let rulesModal, btnStartPlay, btnCloseRulesTop;
+  let winModal, winStars, winTitle, winMessage, winMoveCount, winIdealCount, winRank;
+  let btnNextLevel, btnWinReplay, btnWinShowAlgo;
+  let rulesModal, rulesBadge, rulesTitle, rulesSummary, rulesGrid, rulesTip, btnStartPlay, btnCloseRulesTop;
 
-  function createInitialState() {
+  function getLevel() {
+    return LEVELS[currentLevelId];
+  }
+
+  function createInitialState(levelId) {
+    const lvl = LEVELS[levelId];
+    const locations = {};
+    lvl.chars.forEach((id) => { locations[id] = 'left'; });
     return {
+      levelId,
       boatSide: 'left',
-      locations: {
-        farmer: 'left',
-        wolf: 'left',
-        sheep: 'left',
-        cabbage: 'left'
-      },
+      locations,
       moves: 0,
-      algoLog: [] // { step, text, failed }
+      algoLog: []
     };
   }
 
   function cloneState(s) {
     return {
+      levelId: s.levelId,
       boatSide: s.boatSide,
       locations: { ...s.locations },
       moves: s.moves,
@@ -139,42 +260,52 @@
 
   // ==================== BAŞLATMA ====================
   function init() {
+    // 3 seviyenin gerçek en kısa adım sayısını BFS ile doğrula
+    [1, 2, 3].forEach((lvlId) => {
+      const startBanks = {};
+      LEVELS[lvlId].chars.forEach((c) => { startBanks[c] = 'left'; });
+      const res = solveLevelBFS(lvlId, 'left', startBanks);
+      idealStepsByLevel[lvlId] = res ? res.steps : 7;
+    });
+
     svgEl = document.getElementById('gameSvg');
     canvasEl = document.getElementById('effectsCanvas');
     ctx = canvasEl.getContext('2d');
 
-    // Masalsı 2D SVG sahnesini oluştur
     svgEl.innerHTML = window.SceneArt.buildSceneSVG();
 
-    // SVG düğüm referansları
+    // Sabit SVG düğümleri
+    charactersLayerEl = document.getElementById('charactersLayer');
     boatBackGroup = document.getElementById('boatBackGroup');
     boatFrontGroup = document.getElementById('boatFrontGroup');
     boatBackShake = document.getElementById('boatBackShake');
     boatFrontShake = document.getElementById('boatFrontShake');
     boatOar = document.getElementById('boatOar');
     boatSeatHints = document.getElementById('boatSeatHints');
+    seatHintCaptain = document.getElementById('seatHintCaptain');
+    seatHintP1 = document.getElementById('seatHintP1');
+    seatHintP2 = document.getElementById('seatHintP2');
+    boatWeightBar = document.getElementById('boatWeightBar');
+    boatWeightText = document.getElementById('boatWeightText');
+    boatWeightFillRect = document.getElementById('boatWeightFillRect');
 
-    CHAR_IDS.forEach((id) => {
-      const node = document.getElementById(`char-${id}`);
-      charEls[id] = node;
-      bubbleEls[id] = document.getElementById(`bubble-${id}`);
-      node.addEventListener('click', () => onCharacterClick(id));
-      node.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onCharacterClick(id);
-        }
-      });
-    });
-
-    // HUD & Modal referansları
+    // HUD & Panel düğümleri
+    elBrandSubtitle = document.getElementById('brandSubtitle');
     elMoveCount = document.getElementById('moveCount');
+    elIdealHint = document.getElementById('idealHint');
     elRightCount = document.getElementById('rightCount');
+    elLevelObjectiveText = document.getElementById('levelObjectiveText');
+    elLeftBankSummary = document.getElementById('leftBankSummary');
+    elRightBankSummary = document.getElementById('rightBankSummary');
+
     elToastBanner = document.getElementById('toastBanner');
     elToastIcon = document.getElementById('toastIcon');
     elToastText = document.getElementById('toastText');
     elSeatFarmerVal = document.getElementById('seatFarmerVal');
+    elSeatPassengerRole = document.getElementById('seatPassengerRole');
     elSeatPassengerVal = document.getElementById('seatPassengerVal');
+    elDockWeightBarWrap = document.getElementById('dockWeightBarWrap');
+    elDockWeightFill = document.getElementById('dockWeightFill');
 
     btnCross = document.getElementById('btnCross');
     crossText = document.getElementById('crossText');
@@ -189,11 +320,11 @@
     algoDrawer = document.getElementById('algoDrawer');
     btnCloseAlgo = document.getElementById('btnCloseAlgo');
     algoLogList = document.getElementById('algoLogList');
-
-    ruleFarmer = document.getElementById('ruleFarmer');
-    ruleCapacity = document.getElementById('ruleCapacity');
-    ruleWolfSheep = document.getElementById('ruleWolfSheep');
-    ruleSheepCabbage = document.getElementById('ruleSheepCabbage');
+    elRuleCheckList = document.getElementById('ruleCheckList');
+    elLiveCondBox = document.getElementById('liveConditionBox');
+    elLiveCondState = document.getElementById('liveCondState');
+    elLiveCondExpr = document.getElementById('liveCondExpr');
+    elLiveCondVars = document.getElementById('liveCondVars');
 
     failModal = document.getElementById('failModal');
     failEmoji = document.getElementById('failEmoji');
@@ -205,17 +336,36 @@
 
     winModal = document.getElementById('winModal');
     winStars = document.getElementById('winStars');
+    winTitle = document.getElementById('winTitle');
     winMessage = document.getElementById('winMessage');
     winMoveCount = document.getElementById('winMoveCount');
+    winIdealCount = document.getElementById('winIdealCount');
     winRank = document.getElementById('winRank');
+    btnNextLevel = document.getElementById('btnNextLevel');
     btnWinReplay = document.getElementById('btnWinReplay');
     btnWinShowAlgo = document.getElementById('btnWinShowAlgo');
 
     rulesModal = document.getElementById('rulesModal');
+    rulesBadge = document.getElementById('rulesBadge');
+    rulesTitle = document.getElementById('rulesTitle');
+    rulesSummary = document.getElementById('rulesSummary');
+    rulesGrid = document.getElementById('rulesGrid');
+    rulesTip = document.getElementById('rulesTip');
     btnStartPlay = document.getElementById('btnStartPlay');
     btnCloseRulesTop = document.getElementById('btnCloseRulesTop');
 
-    // Olay dinleyicileri
+    // Seviye sekmeleri
+    document.querySelectorAll('.level-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const targetLvl = Number(tab.dataset.level);
+        if (targetLvl && targetLvl !== currentLevelId) {
+          sound.playClick();
+          loadLevel(targetLvl);
+        }
+      });
+    });
+
+    // Temel olaylar
     btnCross.addEventListener('click', onCrossClick);
     btnUndo.addEventListener('click', onUndoClick);
     btnHint.addEventListener('click', onHintClick);
@@ -223,6 +373,7 @@
     btnCloseAlgo.addEventListener('click', () => setAlgoDrawer(false));
     btnRules.addEventListener('click', () => {
       sound.playClick();
+      renderRulesModal();
       rulesModal.hidden = false;
     });
     btnStartPlay.addEventListener('click', () => {
@@ -253,6 +404,13 @@
       resetGame();
     });
 
+    btnNextLevel.addEventListener('click', () => {
+      sound.playClick();
+      winModal.hidden = true;
+      if (currentLevelId < 3) {
+        loadLevel(currentLevelId + 1);
+      }
+    });
     btnWinReplay.addEventListener('click', () => {
       sound.playClick();
       winModal.hidden = true;
@@ -264,7 +422,6 @@
       setAlgoDrawer(true);
     });
 
-    // Klavye kısayolları
     window.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -277,19 +434,146 @@
       }
     });
 
-    // Canvas yeniden boyutlandırma
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Başlangıç arayüzünü güncelle
-    syncVisualPositionsImmediate();
-    updateUI();
+    // 1. Seviyeyi yükle
+    loadLevel(1);
 
-    // Ana animasyon döngüsünü başlat
+    // 60 FPS animasyon döngüsünü başlat
     requestAnimationFrame(tick);
   }
 
-  // ==================== KOORDİNAT DÖNÜŞÜMÜ (SVG <-> CANVAS) ====================
+  // ==================== SEVİYE YÜKLEME ====================
+  function loadLevel(levelId) {
+    clearAllTimeouts();
+    confettiActive = false;
+    confetti.length = 0;
+    wakes.length = 0;
+    splashes.length = 0;
+
+    currentLevelId = levelId;
+    const lvl = getLevel();
+    state = createInitialState(levelId);
+    historyStack = [];
+    gameEnded = false;
+    isBusy = false;
+    lastConditionOverride = null;
+    boatVisual.crossing = null;
+    boatVisual.sinkY = 0;
+
+    failModal.hidden = true;
+    winModal.hidden = true;
+
+    // SVG karakterlerini seviyeye göre oluştur ve bağla
+    charactersLayerEl.innerHTML = window.SceneArt.buildCharactersForLevel(levelId);
+    charEls = {};
+    bubbleEls = {};
+    charVisuals = {};
+
+    lvl.chars.forEach((id) => {
+      const node = document.getElementById(`char-${id}`);
+      charEls[id] = node;
+      bubbleEls[id] = document.getElementById(`bubble-${id}`);
+      const slot = lvl.slots.left[id];
+      charVisuals[id] = { x: slot.x, y: slot.y, scaleX: 1, scaleY: 1, hop: null };
+
+      node.addEventListener('click', () => onCharacterClick(id));
+      node.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onCharacterClick(id);
+        }
+      });
+    });
+
+    // Seviye sekmelerini güncelle
+    document.querySelectorAll('.level-tab').forEach((tab) => {
+      const isAct = Number(tab.dataset.level) === levelId;
+      tab.classList.toggle('active', isAct);
+      tab.setAttribute('aria-selected', String(isAct));
+    });
+
+    // Sandal koltuk ipuçları & ağırlık barı görünürlüğü
+    configureBoatVisualForLevel(lvl);
+
+    // Seviye başlıkları ve kurallar panelini çiz
+    const ideal = idealStepsByLevel[levelId];
+    elBrandSubtitle.textContent = `${lvl.shortTitle} • ${lvl.topic}`;
+    elIdealHint.textContent = `/ ${ideal} ideal`;
+
+    if (levelId === 1) {
+      elLevelObjectiveText.textContent = `Kapasite: Çiftçi + 1 Yolcu • İdeal Algoritma: ${ideal} Adım`;
+    } else if (levelId === 2) {
+      elLevelObjectiveText.textContent = `Kapasite: Çiftçi + 2 Yolcu • Kural: Kurt ≤ Kuzu • İdeal: ${ideal} Adım`;
+    } else {
+      elLevelObjectiveText.textContent = `Kapasite Limiti: 100 kg • Besin Zinciri Aktif • İdeal: ${ideal} Adım`;
+    }
+
+    renderRuleCards(lvl);
+    renderRulesModal();
+    syncVisualPositionsImmediate();
+    updateUI();
+
+    const welcomeMsg = levelId === 1
+      ? '1. Seviye: Karakterlere tıklayarak sandala bindir, sonra "Karşıya Geç" butonuna bas!'
+      : levelId === 2
+        ? '2. Seviye: Sandala Çiftçi + en fazla 2 yolcu binebilir. Çiftçi yokken Kurt > Kuzu olmamalı!'
+        : '3. Seviye: Toplam ağırlık 100 kg\'ı geçmemeli! En az adımla çözmek için ağırlıkları kombine et.';
+    showToast('✨', welcomeMsg, 'default');
+  }
+
+  function configureBoatVisualForLevel(lvl) {
+    if (lvl.capacityMode === 'weight') {
+      boatWeightBar.style.display = '';
+      boatSeatHints.style.display = 'none';
+    } else {
+      boatWeightBar.style.display = 'none';
+      boatSeatHints.style.display = '';
+      if (lvl.maxPassengers === 2) {
+        seatHintCaptain.setAttribute('transform', 'translate(-12, 0)');
+        seatHintP1.setAttribute('transform', 'translate(-35, 0)');
+        seatHintP2.style.display = '';
+      } else {
+        seatHintCaptain.setAttribute('transform', 'translate(0, 0)');
+        seatHintP1.setAttribute('transform', 'translate(0, 0)');
+        seatHintP2.style.display = 'none';
+      }
+    }
+  }
+
+  function renderRuleCards(lvl) {
+    elRuleCheckList.innerHTML = lvl.ruleCards
+      .map((rc) => `
+        <li id="${rc.id}" class="rule-item rule-ok">
+          <span class="rule-status">✓</span>
+          <div>
+            <strong>${rc.cond}</strong> ${rc.expr}<br />
+            <span><strong>İSE</strong> ${rc.res}</span>
+          </div>
+        </li>
+      `)
+      .join('');
+  }
+
+  function renderRulesModal() {
+    const lvl = getLevel();
+    const ideal = idealStepsByLevel[lvl.id];
+    rulesBadge.textContent = lvl.badge;
+    rulesTitle.textContent = lvl.name;
+    rulesSummary.innerHTML = lvl.rulesSummary;
+    rulesGrid.innerHTML = lvl.rulesList
+      .map((r) => `
+        <li>
+          <span class="r-ico">${r.ico}</span>
+          <div><strong>${r.title}</strong> ${r.text}</div>
+        </li>
+      `)
+      .join('');
+    rulesTip.innerHTML = `💡 <strong>Optimizasyon Hedefi:</strong> Bu seviye matematiksel olarak en az <strong>${ideal} adımda</strong> çözülebilir. Karakterlere tıklayarak sandala bindirip indir, ardından <strong>"Karşıya Geç"</strong> butonuna bas!`;
+  }
+
+  // ==================== KOORDİNAT DÖNÜŞÜMÜ ====================
   function resizeCanvas() {
     const rect = canvasEl.parentElement.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -302,7 +586,6 @@
     const rect = canvasEl.parentElement.getBoundingClientRect();
     const cw = rect.width;
     const ch = rect.height;
-    // preserveAspectRatio="xMidYMid meet" dönüşümü
     const scale = Math.min(cw / SVG_W, ch / SVG_H);
     const offsetX = (cw - SVG_W * scale) / 2;
     const offsetY = (ch - SVG_H * scale) / 2;
@@ -313,21 +596,47 @@
     };
   }
 
-  // ==================== DURUM YARDIMCILARI ====================
-  function getPassengerInBoat() {
-    return CHAR_IDS.find((id) => id !== 'farmer' && state.locations[id] === 'boat') || null;
+  // ==================== DURUM & AĞIRLIK YARDIMCILARI ====================
+  function getPassengersInBoat() {
+    return getLevel().chars.filter((id) => id !== 'farmer' && state.locations[id] === 'boat');
   }
 
   function isFarmerInBoat() {
     return state.locations.farmer === 'boat';
   }
 
+  function getBoatTotalWeight() {
+    const lvl = getLevel();
+    return lvl.chars.reduce((sum, id) => (
+      state.locations[id] === 'boat' ? sum + (lvl.meta[id].weight || 0) : sum
+    ), 0);
+  }
+
   function getBoatSeatPosition(charId, boatX, boatY) {
-    const offset = charId === 'farmer' ? BOAT_SEAT_OFFSET.captain : BOAT_SEAT_OFFSET.passenger;
-    return {
-      x: boatX + offset.dx,
-      y: boatY + offset.dy
-    };
+    const lvl = getLevel();
+    const passengers = getPassengersInBoat();
+
+    if (charId === 'farmer') {
+      const dx = lvl.id === 1 ? -36 : (passengers.length >= 2 ? -50 : -40);
+      return { x: boatX + dx, y: boatY + 2 };
+    }
+
+    const idx = passengers.indexOf(charId);
+    const count = Math.max(1, passengers.length);
+
+    if (count === 1) {
+      return { x: boatX + 36, y: boatY - 2 };
+    }
+    if (count === 2) {
+      const slots = [4, 52];
+      return { x: boatX + slots[Math.max(0, idx)], y: boatY - 2 };
+    }
+    // 3 veya 4 yolcu (Seviye 3'te aşırı yük denemesi dahil)
+    const minX = -8;
+    const maxX = 58;
+    const step = (maxX - minX) / (count - 1);
+    const dx = minX + Math.max(0, idx) * step;
+    return { x: boatX + dx, y: boatY - 3 };
   }
 
   function getTargetPosition(charId) {
@@ -335,20 +644,45 @@
     if (loc === 'boat') {
       return getBoatSeatPosition(charId, boatVisual.x, boatVisual.y);
     }
-    return BANK_SLOTS[loc][charId];
+    return getLevel().slots[loc][charId];
   }
 
-  function checkBankHazard(side) {
-    // Çiftçi bu kıyıda (veya bu kıyıda demirli sandalda) ise tehlike yok
-    const farmerSafeHere = state.locations.farmer === side;
-    if (farmerSafeHere) return null;
+  function countTypeOnSide(side, type) {
+    const lvl = getLevel();
+    return lvl.chars.filter((id) => state.locations[id] === side && lvl.meta[id].type === type).length;
+  }
 
-    const wolfHere = state.locations.wolf === side;
-    const sheepHere = state.locations.sheep === side;
-    const cabbageHere = state.locations.cabbage === side;
+  function evaluateBankHazard(levelId, banksMap, side) {
+    const lvl = LEVELS[levelId];
+    if (banksMap.farmer === side) return null;
 
-    if (wolfHere && sheepHere) return 'wolf-sheep';
-    if (sheepHere && cabbageHere) return 'sheep-cabbage';
+    if (levelId === 2) {
+      const wolves = lvl.chars.filter((id) => banksMap[id] === side && lvl.meta[id].type === 'wolf');
+      const sheep  = lvl.chars.filter((id) => banksMap[id] === side && lvl.meta[id].type === 'sheep');
+      if (sheep.length > 0 && wolves.length > sheep.length) {
+        return {
+          type: 'wolf-outnumber',
+          side,
+          wolvesCount: wolves.length,
+          sheepCount: sheep.length,
+          wolfIds: wolves,
+          sheepIds: sheep
+        };
+      }
+      return null;
+    }
+
+    // Seviye 1 ve Seviye 3 besin zinciri kuralları
+    const wolfHere = banksMap.wolf === side;
+    const sheepHere = banksMap.sheep === side;
+    const cabbageHere = banksMap.cabbage === side;
+
+    if (wolfHere && sheepHere) {
+      return { type: 'wolf-sheep', side, wolfIds: ['wolf'], sheepIds: ['sheep'] };
+    }
+    if (sheepHere && cabbageHere) {
+      return { type: 'sheep-cabbage', side, sheepIds: ['sheep'], cabbageIds: ['cabbage'] };
+    }
     return null;
   }
 
@@ -356,23 +690,26 @@
   function onCharacterClick(charId) {
     if (isBusy || gameEnded) return;
     clearHighlights();
+    lastConditionOverride = null;
 
+    const lvl = getLevel();
     const loc = state.locations[charId];
+    const meta = lvl.meta[charId];
 
-    // 1) Karakter zaten sandalda -> bulunduğu kıyıya indir
+    // 1) Karakter sandalda -> bulunduğu kıyıya indir
     if (loc === 'boat') {
       const targetBank = state.boatSide;
       state.locations[charId] = targetBank;
       sound.playHop(false);
-      animateCharacterHop(charId, BANK_SLOTS[targetBank][charId], false, () => {
-        showToast('✨', `${CHAR_META[charId].name} ${targetBank === 'left' ? 'sol' : 'sağ'} kıyıya indi.`, 'default');
+      animateCharacterHop(charId, lvl.slots[targetBank][charId], false, () => {
+        showToast('✨', `${meta.name} ${targetBank === 'left' ? 'sol' : 'sağ'} kıyıya indi.`, 'default');
         updateUI();
       });
       updateUI();
       return;
     }
 
-    // 2) Karakter sandalın olmadığı karşı kıyıda -> uyarı ver
+    // 2) Karakter karşı kıyıda -> uyarı
     if (loc !== state.boatSide) {
       sound.playWarn();
       pulseCharacter(charId);
@@ -380,32 +717,56 @@
       return;
     }
 
-    // 3) Karakter sandalın olduğu kıyıda -> sandala bindir
-    if (charId !== 'farmer') {
-      const currentPassenger = getPassengerInBoat();
-      if (currentPassenger) {
+    // 3) Kapasite kontrolü (Seviye 1 & 2: yolcu sayısı sınırı; Seviye 3: binmesine izin ver, ağırlık barı uyarsın)
+    if (lvl.capacityMode === 'count' && charId !== 'farmer') {
+      const passengers = getPassengersInBoat();
+      if (passengers.length >= lvl.maxPassengers) {
         sound.playWarn();
         triggerBoatShake();
-        pulseCharacter(currentPassenger);
+        passengers.forEach((pId) => pulseCharacter(pId));
+        const capRuleEl = document.getElementById('rCap');
+        if (capRuleEl) setRuleStatus(capRuleEl, 'danger', '✕');
+        lastConditionOverride = {
+          status: 'warn',
+          stateLabel: 'KAPASİTE DOLU',
+          expr: `EĞER (yolcuSayısı == ${lvl.maxPassengers}) İSE → Yeni yolcu binemez!`
+        };
         showToast(
           '⚠️',
-          `Sandalda Çiftçi dışında en fazla 1 yolcu olabilir! Önce ${CHAR_META[currentPassenger].name} karakterini indir.`,
+          `Sandalda Çiftçi dışında en fazla ${lvl.maxPassengers} yolcu bulunabilir! Önce bir yolcuyu indir.`,
           'warn'
         );
+        updateUI();
         return;
       }
     }
 
+    // Sandala bindir
     state.locations[charId] = 'boat';
     sound.playHop(true);
     const seatPos = getBoatSeatPosition(charId, boatVisual.x, boatVisual.y);
     animateCharacterHop(charId, seatPos, true, () => {
-      if (charId === 'farmer') {
-        showToast('🚣', 'Çiftçi sandala bindi! İstersen 1 yolcu daha alıp "Karşıya Geç"e bas.', 'success');
-      } else if (!isFarmerInBoat()) {
-        showToast('🧑‍🌾', `${CHAR_META[charId].name} sandala bindi! Hareket etmek için Çiftçi'yi de bindir.`, 'default');
+      if (lvl.capacityMode === 'weight') {
+        const totalKg = getBoatTotalWeight();
+        if (totalKg > lvl.maxWeight) {
+          sound.playWarn();
+          triggerBoatShake();
+          showToast('⚠️', `Ağırlık limiti aşıldı! (${totalKg} / ${lvl.maxWeight} kg) Sandal bu yükle hareket edemez.`, 'danger');
+        } else if (!isFarmerInBoat()) {
+          showToast('🧑‍🌾', `${meta.name} (${meta.weight} kg) bindi. Toplam: ${totalKg} / ${lvl.maxWeight} kg. Çiftçi'yi de bindir!`, 'default');
+        } else {
+          showToast('⚖️', `Sandal ağırlığı: ${totalKg} / ${lvl.maxWeight} kg (Kalan: ${lvl.maxWeight - totalKg} kg).`, 'success');
+        }
       } else {
-        showToast('🚣', `Çiftçi ve ${CHAR_META[charId].name} hazır! "Karşıya Geç" butonuna basabilirsin.`, 'success');
+        const passengers = getPassengersInBoat();
+        if (charId === 'farmer') {
+          showToast('🚣', `Çiftçi sandala bindi! İstersen en fazla ${lvl.maxPassengers} yolcu alıp "Karşıya Geç"e bas.`, 'success');
+        } else if (!isFarmerInBoat()) {
+          showToast('🧑‍🌾', `${meta.name} sandala bindi! Hareket etmek için Çiftçi'yi de bindir.`, 'default');
+        } else {
+          const names = passengers.map((p) => lvl.meta[p].name).join(' ve ');
+          showToast('🚣', `Çiftçi + ${names} hazır! "Karşıya Geç" butonuna basabilirsin.`, 'success');
+        }
       }
       updateUI();
     });
@@ -421,10 +782,9 @@
       toX: targetPos.x,
       toY: targetPos.y,
       startTime: performance.now(),
-      duration: 420,
+      duration: 400,
       toBoat,
       onComplete: () => {
-        // İniş/biniş parıltı efekti
         emitLandingPuff(targetPos.x, targetPos.y, toBoat ? '#aef2ff' : '#e6ff9e');
         isBusy = false;
         if (onComplete) onComplete();
@@ -432,19 +792,52 @@
     };
   }
 
-  // ==================== KARŞIYA GEÇİŞ (SANDAL HAREKETİ) ====================
+  // ==================== KARŞIYA GEÇİŞ ====================
   function onCrossClick() {
     if (isBusy || gameEnded) return;
     clearHighlights();
+    lastConditionOverride = null;
+
+    const lvl = getLevel();
 
     // Kural 1: Çiftçi olmadan sandal hareket edemez
     if (!isFarmerInBoat()) {
       sound.playWarn();
       triggerBoatShake();
       pulseCharacter('farmer');
-      setRuleStatus(ruleFarmer, 'danger', '✕');
+      const fRule = document.getElementById('rFarmer');
+      if (fRule) setRuleStatus(fRule, 'danger', '✕');
+      lastConditionOverride = {
+        status: 'danger',
+        stateLabel: 'KAPTAN YOK',
+        expr: 'EĞER (SandaldaÇiftçi == YANLIŞ) İSE → Sandal hareket edemez!'
+      };
       showToast('🧑‍🌾', 'Sandalı sadece Çiftçi kullanabilir! Önce Çiftçi\'yi sandala bindir.', 'warn');
+      updateUI();
       return;
+    }
+
+    // Kural 2 (Seviye 3): Toplam ağırlık <= 100 kg kontrolü
+    if (lvl.capacityMode === 'weight') {
+      const totalKg = getBoatTotalWeight();
+      if (totalKg > lvl.maxWeight) {
+        sound.playWarn();
+        triggerBoatShake();
+        const wRule = document.getElementById('rWeight');
+        if (wRule) setRuleStatus(wRule, 'danger', '✕');
+        lastConditionOverride = {
+          status: 'danger',
+          stateLabel: 'AŞIRI YÜK!',
+          expr: `EĞER (ToplamAğırlık (${totalKg} kg) > Limit (${lvl.maxWeight} kg)) İSE → Hareket İptal!`
+        };
+        showToast(
+          '⚖️',
+          `Ağırlık Limiti Aşıldı! Toplam Ağırlık (${totalKg} kg) > ${lvl.maxWeight} kg olduğu için sandal hareket edemez.`,
+          'danger'
+        );
+        updateUI();
+        return;
+      }
     }
 
     // Geri Al için geçiş öncesi anlık durumu kaydet
@@ -452,81 +845,110 @@
 
     const fromSide = state.boatSide;
     const toSide = fromSide === 'left' ? 'right' : 'left';
-    const passenger = getPassengerInBoat();
+    const passengers = getPassengersInBoat();
+    const totalKg = lvl.capacityMode === 'weight' ? getBoatTotalWeight() : 0;
 
-    // Durumu güncelle
     state.boatSide = toSide;
     state.moves += 1;
 
-    const crewText = passenger
-      ? `Çiftçi + ${CHAR_META[passenger].name}`
+    const crewNames = passengers.length > 0
+      ? `Çiftçi + ${passengers.map((p) => lvl.meta[p].name).join(' + ')}`
       : 'Sadece Çiftçi';
-    const dirLabel = toSide === 'right' ? 'Sağ Kıyıya ➜' : '⬅ Sol Kıyıya';
+    const kgSuffix = lvl.capacityMode === 'weight' ? ` [${totalKg} kg]` : '';
+    const dirLabel = toSide === 'right' ? 'Sağ Kıyı' : 'Sol Kıyı';
 
-    // Geçiş animasyonunu başlat
     isBusy = true;
     sound.playRowSplash();
-    scheduleTimeout(() => sound.playRowSplash(), 580);
-    scheduleTimeout(() => sound.playRowSplash(), 1120);
+    scheduleTimeout(() => sound.playRowSplash(), 560);
+    scheduleTimeout(() => sound.playRowSplash(), 1100);
 
-    showToast('🌊', `${crewText} karşıya geçiyor...`, 'default');
+    showToast('🌊', `${crewNames}${kgSuffix} karşıya geçiyor...`, 'default');
     updateUI();
 
     boatVisual.crossing = {
       fromX: BOAT_DOCK[fromSide].x,
       toX: BOAT_DOCK[toSide].x,
       startTime: performance.now(),
-      duration: 1520,
+      duration: 1500,
       dir: toSide === 'right' ? 1 : -1,
       onComplete: () => {
         boatVisual.x = BOAT_DOCK[toSide].x;
         boatVisual.oarAngle = -18;
 
-        // Ayrılınan kıyıda kural ihlali oluştu mu?
-        const hazard = checkBankHazard(fromSide);
+        // Ayrılınan kıyıda kural ihlali var mı?
+        const hazard = evaluateBankHazard(lvl.id, state.locations, fromSide);
         if (hazard) {
           state.algoLog.push({
             step: state.moves,
-            text: `${crewText} (${dirLabel}) — Kural İhlali!`,
+            text: `${crewNames}${kgSuffix} → ${dirLabel} (Mantık Hatası!)`,
             failed: true
           });
-          triggerRuleViolation(hazard, fromSide);
+          triggerRuleViolation(hazard);
           return;
         }
 
-        // Güvenli geçiş kaydı
+        // Güvenli adım kaydı
         state.algoLog.push({
           step: state.moves,
-          text: `${crewText} → ${toSide === 'right' ? 'Sağ Kıyı' : 'Sol Kıyı'}`,
+          text: `${crewNames}${kgSuffix} → ${dirLabel}`,
           failed: false
         });
 
-        // Kazanma kontrolü: Tüm 4 karakter sağ kıyıya ulaştı mı?
-        const allOnRightOrInRightBoat =
+        // Kazanma kontrolü: Tüm karakterler sağ kıyıya ulaştı mı?
+        const allReachedRight =
           state.boatSide === 'right' &&
-          CHAR_IDS.every((id) => state.locations[id] === 'right' || state.locations[id] === 'boat');
+          lvl.chars.every((id) => state.locations[id] === 'right' || state.locations[id] === 'boat');
 
-        if (allOnRightOrInRightBoat) {
+        if (allReachedRight) {
           triggerVictorySequence();
         } else {
           isBusy = false;
-          showToast('✅', `${crewText} güvenle ${toSide === 'right' ? 'sağ' : 'sol'} kıyıya ulaştı!`, 'success');
+          showToast('✅', `${crewNames}${kgSuffix} güvenle ${toSide === 'right' ? 'sağ' : 'sol'} kıyıya ulaştı!`, 'success');
           updateUI();
         }
       }
     };
   }
 
-  // ==================== YANLIŞ HAMLE MİKRO ANİMASYONU ====================
-  function triggerRuleViolation(hazardType, unsafeSide) {
+  // ==================== KURAL İHLALİ & MİKRO ANİMASYONLAR ====================
+  function triggerRuleViolation(hazard) {
     gameEnded = true;
     isBusy = true;
-    sound.playFail(hazardType);
 
-    const sideName = unsafeSide === 'left' ? 'sol' : 'sağ';
+    const sideTitle = hazard.side === 'left' ? 'Sol' : 'Sağ';
+    const sideLower = hazard.side === 'left' ? 'sol' : 'sağ';
 
-    if (hazardType === 'wolf-sheep') {
-      // Kurtun ağzı sulanır, kuzu korkuyla zıplar!
+    if (hazard.type === 'wolf-outnumber') {
+      sound.playFail('wolf-sheep');
+      hazard.wolfIds.forEach((id) => {
+        charEls[id].classList.add('anim-wolf-hungry');
+        showSpeechBubble(id, 'Sayıca üstünüz! 😋');
+      });
+      hazard.sheepIds.forEach((id) => {
+        charEls[id].classList.add('anim-sheep-scared');
+        showSpeechBubble(id, 'Meee! Çok fazlalar! 😱');
+      });
+      charEls.farmer.classList.add('anim-farmer-worried');
+      showSpeechBubble('farmer', 'Eyvah! Kurt > Kuzu!');
+
+      const cRule = document.getElementById('rCount');
+      if (cRule) setRuleStatus(cRule, 'danger', '✕');
+
+      lastConditionOverride = {
+        status: 'danger',
+        stateLabel: 'MANTIK HATASI!',
+        expr: `EĞER (Çiftçi != ${sideTitle}Kıyı) VE (Kurt (${hazard.wolvesCount}) > Kuzu (${hazard.sheepCount})) İSE → HATA!`
+      };
+
+      const errMsg = `Mantık Hatası: ${sideTitle} kıyıda Kurt Sayısı (${hazard.wolvesCount}) > Kuzu Sayısı (${hazard.sheepCount}) koşulu oluştu! Çiftçi orada olmadığı için kuzular tehlikede.`;
+      showToast('🚨', errMsg, 'danger');
+
+      failEmoji.textContent = '🐺🐺🐑';
+      failTitle.textContent = 'Mantık Hatası: Kurt Sayısı > Kuzu Sayısı!';
+      failMessage.textContent = errMsg;
+      failLogicText.textContent = `EĞER (Çiftçi != ${sideTitle}Kıyı) VE (KuzuSayısı > 0) VE (KurtSayısı (${hazard.wolvesCount}) > KuzuSayısı (${hazard.sheepCount})) İSE → Kurtlar kuzuları yer!`;
+    } else if (hazard.type === 'wolf-sheep') {
+      sound.playFail('wolf-sheep');
       charEls.wolf.classList.add('anim-wolf-hungry');
       charEls.sheep.classList.add('anim-sheep-scared');
       charEls.farmer.classList.add('anim-farmer-worried');
@@ -535,15 +957,23 @@
       showSpeechBubble('sheep', 'Meee! İmdat! 😱');
       showSpeechBubble('farmer', 'Eyvah! Kuzum!');
 
-      setRuleStatus(ruleWolfSheep, 'danger', '✕');
-      showToast('🚨', `Eyvah! Kurt ile Kuzu ${sideName} kıyıda yalnız kaldı!`, 'danger');
+      const wRule = document.getElementById('rWolf');
+      if (wRule) setRuleStatus(wRule, 'danger', '✕');
+
+      lastConditionOverride = {
+        status: 'danger',
+        stateLabel: 'MANTIK HATASI!',
+        expr: `EĞER (Çiftçi != ${sideTitle}Kıyı) VE (Kurt == Kuzu) İSE → HATA!`
+      };
+
+      showToast('🚨', `Eyvah! Kurt ile Kuzu ${sideLower} kıyıda yalnız kaldı!`, 'danger');
 
       failEmoji.textContent = '🐺🐑';
       failTitle.textContent = 'Eyvah! Kurt Kuzuyu Yedi!';
-      failMessage.textContent = `Çiftçi karşıya geçince Kurt ve Kuzu ${sideName} kıyıda yalnız kaldı. Aç kurt bu fırsatı kaçırmadı!`;
-      failLogicText.textContent = 'EĞER (Çiftçi aynı kıyıda DEĞİL) VE (Kurt ile Kuzu aynı kıyıdaysa) İSE → Kurt kuzuyu yer!';
+      failMessage.textContent = `Çiftçi karşıya geçince Kurt ve Kuzu ${sideLower} kıyıda yalnız kaldı. Aç kurt bu fırsatı kaçırmadı!`;
+      failLogicText.textContent = `EĞER (Çiftçi != ${sideTitle}Kıyı) VE (Kurt == Kuzu) İSE → Kurt kuzuyu yer!`;
     } else {
-      // Kuzu lahanayı kıtır kıtır yer, lahana korkuyla titrer!
+      sound.playFail('sheep-cabbage');
       charEls.sheep.classList.add('anim-sheep-munch');
       charEls.cabbage.classList.add('anim-cabbage-scared');
       charEls.farmer.classList.add('anim-farmer-worried');
@@ -552,31 +982,38 @@
       showSpeechBubble('cabbage', 'Yapraklarım! İmdat! 🥬');
       showSpeechBubble('farmer', 'Eyvah! Lahanam!');
 
-      setRuleStatus(ruleSheepCabbage, 'danger', '✕');
-      showToast('🚨', `Eyvah! Kuzu ile Lahana ${sideName} kıyıda yalnız kaldı!`, 'danger');
+      const cabRule = document.getElementById('rCab');
+      if (cabRule) setRuleStatus(cabRule, 'danger', '✕');
+
+      lastConditionOverride = {
+        status: 'danger',
+        stateLabel: 'MANTIK HATASI!',
+        expr: `EĞER (Çiftçi != ${sideTitle}Kıyı) VE (Kuzu == Lahana) İSE → HATA!`
+      };
+
+      showToast('🚨', `Eyvah! Kuzu ile Lahana ${sideLower} kıyıda yalnız kaldı!`, 'danger');
 
       failEmoji.textContent = '🐑🥬';
       failTitle.textContent = 'Eyvah! Kuzu Lahanayı Yedi!';
-      failMessage.textContent = `Çiftçi karşıya geçince Kuzu ve Lahana ${sideName} kıyıda yalnız kaldı. Kuzu taze lahanayı kıtır kıtır mideye indirdi!`;
-      failLogicText.textContent = 'EĞER (Çiftçi aynı kıyıda DEĞİL) VE (Kuzu ile Lahana aynı kıyıdaysa) İSE → Kuzu lahanayı yer!';
+      failMessage.textContent = `Çiftçi karşıya geçince Kuzu ve Lahana ${sideLower} kıyıda yalnız kaldı. Kuzu taze lahanayı kıtır kıtır mideye indirdi!`;
+      failLogicText.textContent = `EĞER (Çiftçi != ${sideTitle}Kıyı) VE (Kuzu == Lahana) İSE → Kuzu lahanayı yer!`;
     }
 
     updateUI();
 
-    // Mikro animasyonun keyifle izlenmesi için 1.9 sn bekle, sonra eğitim modalını aç
     scheduleTimeout(() => {
       isBusy = false;
       failModal.hidden = false;
-    }, 1900);
+    }, 1850);
   }
 
-  // ==================== KAZANMA VE KONFETİ KUTLAMASI ====================
+  // ==================== KAZANMA, OPTİMİZASYON PUANI VE KUTLAMA ====================
   function triggerVictorySequence() {
     gameEnded = true;
     isBusy = true;
 
-    // Sandalda kalanları sırayla sağ kıyıya zıplat
-    const inBoat = CHAR_IDS.filter((id) => state.locations[id] === 'boat');
+    const lvl = getLevel();
+    const inBoat = lvl.chars.filter((id) => state.locations[id] === 'boat');
     let delay = 80;
 
     inBoat.forEach((id, idx) => {
@@ -584,14 +1021,14 @@
         state.locations[id] = 'right';
         sound.playHop(false);
         const vis = charVisuals[id];
-        const dest = BANK_SLOTS.right[id];
+        const dest = lvl.slots.right[id];
         vis.hop = {
           fromX: vis.x,
           fromY: vis.y,
           toX: dest.x,
           toY: dest.y,
           startTime: performance.now(),
-          duration: 380,
+          duration: 360,
           toBoat: false,
           onComplete: () => {
             emitLandingPuff(dest.x, dest.y, '#ffe169');
@@ -602,7 +1039,7 @@
         };
         updateUI();
       }, delay);
-      delay += 200;
+      delay += 180;
     });
 
     if (inBoat.length === 0) {
@@ -611,47 +1048,93 @@
   }
 
   function startCelebration() {
+    const lvl = getLevel();
+    const m = state.moves;
+    const ideal = idealStepsByLevel[lvl.id];
+
     sound.playWin();
     confettiActive = true;
     launchConfettiWave();
     scheduleTimeout(launchConfettiWave, 450);
     scheduleTimeout(launchConfettiWave, 950);
 
-    CHAR_IDS.forEach((id) => charEls[id].classList.add('anim-celebrate'));
-    showSpeechBubble('farmer', 'Başardık! 🎉');
-    showSpeechBubble('wolf', 'Yaşasın! 🐺');
-    showSpeechBubble('sheep', 'Meee! Harika! 🐑');
-    showSpeechBubble('cabbage', 'Güvendeyim! 🥬');
+    lvl.chars.forEach((id) => {
+      charEls[id].classList.add('anim-celebrate');
+      const cheer = id === 'farmer'
+        ? 'Başardık! 🎉'
+        : lvl.meta[id].type === 'wolf'
+          ? 'Yaşasın! 🐺'
+          : lvl.meta[id].type === 'sheep'
+            ? 'Meee! Harika! 🐑'
+            : lvl.meta[id].type === 'feed'
+              ? 'Tam dengede! 🌾'
+              : 'Güvendeyim! 🥬';
+      showSpeechBubble(id, cheer);
+    });
 
-    showToast('🎉', 'Tebrikler! Tüm karakterleri kurallara uyarak sağ kıyıya geçirdin!', 'success');
-
-    // Yıldız ve seviye hesabı
-    const m = state.moves;
+    // Optimizasyon Yıldız & Verimlilik Hesabı
     let stars = '⭐⭐⭐';
-    let rank = 'Algoritma Ustası!';
-    let msg = `Harika bir mantık yürüttün! Bulmacayı mümkün olan en kısa yol olan ${m} hamlede çözdün.`;
+    let starCount = 3;
+    let rank = 'Optimal! 🏆';
+    let extra = 'Mükemmel optimizasyon! En kısa algoritmayı buldun.';
 
-    if (m >= 8 && m <= 9) {
+    if (m > ideal && m <= ideal + 2) {
       stars = '⭐⭐';
-      rank = 'Zeki Kaşif!';
-      msg = `Çok iyi iş çıkardın! Bulmacayı ${m} hamlede çözdün. 7 hamlede çözmeyi de deneyebilir misin?`;
-    } else if (m >= 10) {
+      starCount = 2;
+      rank = 'Çok İyi!';
+      extra = `Algoritmanı biraz daha sadeleştirerek ${ideal} adıma düşürebilirsin!`;
+    } else if (m > ideal + 2) {
       stars = '⭐';
-      rank = 'Azimli Çözücü!';
-      msg = `Tebrikler, pes etmeden ${m} hamlede başarıya ulaştın! Bir dahaki sefere 7 hamleyi hedefle.`;
+      starCount = 1;
+      rank = 'Geliştirilebilir';
+      extra = `Hedefe ulaştın! Şimdi gereksiz adımları azaltıp ${ideal} adımlık ideal çözümü hedefle.`;
     }
 
-    winStars.textContent = stars;
-    winMoveCount.textContent = String(m);
-    winRank.textContent = rank;
-    winMessage.textContent = msg;
+    // Tamamlanan seviye kaydı (en iyi skor saklanır)
+    const prev = completedLevels[lvl.id];
+    if (!prev || m < prev.bestMoves) {
+      completedLevels[lvl.id] = { bestMoves: m, stars, starCount };
+    }
+    updateLevelDoneBadges();
 
+    winStars.textContent = stars;
+    winTitle.textContent = lvl.id === 3
+      ? '🏆 Tüm Seviyeleri Tamamladın!'
+      : `Tebrikler! ${lvl.shortTitle} Tamamlandı!`;
+    winMessage.textContent = `Tebrikler! ${m} adımda tamamladın. En kısa algoritma: ${ideal} adım. ${stars} ${extra}`;
+    winMoveCount.textContent = `${m} Adım`;
+    winIdealCount.textContent = `${ideal} Adım`;
+    winRank.textContent = rank;
+
+    // Sonraki Seviye butonu kontrolü
+    if (lvl.id < 3) {
+      btnNextLevel.hidden = false;
+      btnNextLevel.textContent = `🚀 ${lvl.id + 1}. Seviyeye Geç ➜`;
+    } else {
+      btnNextLevel.hidden = true;
+    }
+
+    showToast('🎉', `${lvl.shortTitle} ${m} adımda tamamlandı! (En kısa algoritma: ${ideal} adım)`, 'success');
     updateUI();
 
     scheduleTimeout(() => {
       isBusy = false;
       winModal.hidden = false;
-    }, 1050);
+    }, 1020);
+  }
+
+  function updateLevelDoneBadges() {
+    [1, 2, 3].forEach((lvlId) => {
+      const el = document.getElementById(`lvlDone${lvlId}`);
+      if (!el) return;
+      const rec = completedLevels[lvlId];
+      if (rec) {
+        el.hidden = false;
+        el.textContent = `✓ ${rec.stars}`;
+      } else {
+        el.hidden = true;
+      }
+    });
   }
 
   // ==================== GERİ AL & YENİDEN BAŞLA ====================
@@ -666,12 +1149,13 @@
     clearAllTimeouts();
     clearCharacterAnimStates();
     confettiActive = false;
+    lastConditionOverride = null;
 
     state = historyStack.pop();
     gameEnded = false;
     isBusy = false;
     boatVisual.crossing = null;
-    CHAR_IDS.forEach((id) => { charVisuals[id].hop = null; });
+    getLevel().chars.forEach((id) => { charVisuals[id].hop = null; });
 
     syncVisualPositionsImmediate();
     updateUI();
@@ -679,34 +1163,16 @@
   }
 
   function resetGame() {
-    clearAllTimeouts();
-    clearCharacterAnimStates();
-    confettiActive = false;
-    confetti.length = 0;
-    wakes.length = 0;
-    splashes.length = 0;
-
-    state = createInitialState();
-    historyStack = [];
-    gameEnded = false;
-    isBusy = false;
-    boatVisual.crossing = null;
-    CHAR_IDS.forEach((id) => { charVisuals[id].hop = null; });
-
-    failModal.hidden = true;
-    winModal.hidden = true;
-
-    syncVisualPositionsImmediate();
-    updateUI();
-    showToast('✨', 'Oyun yenilendi! Karakterlere tıklayarak sandala bindir ve karşıya geç.', 'default');
+    loadLevel(currentLevelId);
   }
 
   function syncVisualPositionsImmediate() {
+    const lvl = getLevel();
     boatVisual.x = BOAT_DOCK[state.boatSide].x;
     boatVisual.y = BOAT_DOCK[state.boatSide].y;
     boatVisual.oarAngle = -18;
 
-    CHAR_IDS.forEach((id) => {
+    lvl.chars.forEach((id) => {
       const pos = getTargetPosition(id);
       charVisuals[id].x = pos.x;
       charVisuals[id].y = pos.y;
@@ -715,157 +1181,286 @@
     });
   }
 
-  // ==================== AKILLI BFS İPUCU ÇÖZÜCÜ ====================
+  // ==================== GENELLEŞTİRİLMİŞ BFS İPUCU & OPTİMAL ADIM ÇÖZÜCÜ ====================
   function onHintClick() {
     if (isBusy || gameEnded) return;
     sound.playClick();
     clearHighlights();
 
-    // Mevcut durumu kıyı bazlı mantıksal duruma çevir (sandaldakiler boatSide kıyısında sayılır)
-    const bankOf = (id) => (state.locations[id] === 'boat' ? state.boatSide : state.locations[id]);
-    const startNode = {
-      f: state.boatSide, // Çiftçi her zaman geçiş anında boatSide tarafındadır
-      w: bankOf('wolf'),
-      s: bankOf('sheep'),
-      c: bankOf('cabbage')
-    };
+    const lvl = getLevel();
+    const banksMap = {};
+    lvl.chars.forEach((id) => {
+      banksMap[id] = state.locations[id] === 'boat' ? state.boatSide : state.locations[id];
+    });
 
-    // Eğer Çiftçi karşı kıyıdaysa (teorik olarak oluşmaz ama güvenli kontrol)
-    if (bankOf('farmer') !== state.boatSide) {
-      showToast('💡', 'İpucu: Önce Çiftçi\'yi sandala bindirmelisin.', 'hint');
-      pulseCharacter('farmer');
-      return;
-    }
-
-    const nextStep = findShortestSafeMove(startNode);
-    if (!nextStep) {
+    const solution = solveLevelBFS(lvl.id, state.boatSide, banksMap);
+    if (!solution || !solution.firstMove) {
       showToast('💡', 'İpucu: Geri Al ile bir önceki güvenli adıma dönebilirsin.', 'hint');
       return;
     }
 
-    const destText = nextStep.to === 'right' ? 'sağ kıyıya' : 'sol kıyıya';
-    if (nextStep.passenger) {
-      const pName = CHAR_META[nextStep.passenger].name;
-      pulseCharacter('farmer');
-      pulseCharacter(nextStep.passenger);
-      showToast('💡', `İpucu: Çiftçi ve ${pName} ile birlikte ${destText} geçmeyi dene!`, 'hint');
+    const move = solution.firstMove;
+    const destText = move.to === 'right' ? 'sağ kıyıya' : 'sol kıyıya';
+
+    pulseCharacter('farmer');
+    move.passengers.forEach((pId) => pulseCharacter(pId));
+
+    if (move.passengers.length === 0) {
+      showToast('💡', `İpucu (${solution.steps} adım kaldı): Çiftçi tek başına ${destText} dönebilir!`, 'hint');
     } else {
-      pulseCharacter('farmer');
-      showToast('💡', `İpucu: Çiftçi tek başına (yolcusuz) ${destText} dönebilir!`, 'hint');
+      const pNames = move.passengers.map((pId) => lvl.meta[pId].name).join(' ve ');
+      const kgInfo = lvl.capacityMode === 'weight'
+        ? ` (${60 + move.passengers.reduce((s, p) => s + lvl.meta[p].weight, 0)} kg)`
+        : '';
+      showToast('💡', `İpucu (${solution.steps} adım kaldı): Çiftçi, ${pNames}${kgInfo} ile ${destText} geçmeyi dene!`, 'hint');
     }
   }
 
-  function findShortestSafeMove(start) {
-    const key = (n) => `${n.f}|${n.w}|${n.s}|${n.c}`;
-    const isSafe = (n) => {
-      if (n.w === n.s && n.f !== n.w) return false;
-      if (n.s === n.c && n.f !== n.s) return false;
-      return true;
-    };
-    const isGoal = (n) => n.f === 'right' && n.w === 'right' && n.s === 'right' && n.c === 'right';
+  function solveLevelBFS(levelId, startSide, startBanks) {
+    const lvl = LEVELS[levelId];
+    const chars = lvl.chars;
 
-    if (isGoal(start)) return null;
+    const encode = (side, map) => `${side}|${chars.map((c) => (map[c] === 'right' ? '1' : '0')).join('')}`;
+    const isGoal = (map) => chars.every((c) => map[c] === 'right');
 
-    const queue = [{ node: start, firstMove: null }];
-    const visited = new Set([key(start)]);
+    if (isGoal(startBanks)) return { steps: 0, firstMove: null };
+
+    const queue = [{ side: startSide, map: { ...startBanks }, steps: 0, firstMove: null }];
+    const visited = new Set([encode(startSide, startBanks)]);
 
     while (queue.length > 0) {
-      const { node, firstMove } = queue.shift();
-      const targetSide = node.f === 'left' ? 'right' : 'left';
+      const cur = queue.shift();
+      const targetSide = cur.side === 'left' ? 'right' : 'left';
+      const avail = chars.filter((c) => c !== 'farmer' && cur.map[c] === cur.side);
 
-      // Olası yolcular: null (sadece çiftçi), veya çiftçiyle aynı kıyıdaki wolf/sheep/cabbage
-      const candidates = [null];
-      if (node.w === node.f) candidates.push('wolf');
-      if (node.s === node.f) candidates.push('sheep');
-      if (node.c === node.f) candidates.push('cabbage');
+      // Geçerli yolcu alt kümelerini üret
+      const subsets = [[]];
+      const totalMasks = 1 << avail.length;
+      for (let mask = 1; mask < totalMasks; mask++) {
+        const chosen = [];
+        for (let i = 0; i < avail.length; i++) {
+          if (mask & (1 << i)) chosen.push(avail[i]);
+        }
+        if (lvl.capacityMode === 'count') {
+          if (chosen.length <= lvl.maxPassengers) subsets.push(chosen);
+        } else {
+          const w = lvl.meta.farmer.weight + chosen.reduce((s, id) => s + lvl.meta[id].weight, 0);
+          if (w <= lvl.maxWeight) subsets.push(chosen);
+        }
+      }
 
-      for (const passenger of candidates) {
-        const next = {
-          f: targetSide,
-          w: passenger === 'wolf' ? targetSide : node.w,
-          s: passenger === 'sheep' ? targetSide : node.s,
-          c: passenger === 'cabbage' ? targetSide : node.c
-        };
-        if (!isSafe(next)) continue;
+      for (const chosen of subsets) {
+        const nextMap = { ...cur.map, farmer: targetSide };
+        chosen.forEach((id) => { nextMap[id] = targetSide; });
 
-        const k = key(next);
-        if (visited.has(k)) continue;
-        visited.add(k);
+        // Ayrılınan kıyıda tehlike oluşuyor mu?
+        if (evaluateBankHazard(levelId, nextMap, cur.side)) continue;
 
-        const moveInfo = firstMove || { passenger, to: targetSide };
-        if (isGoal(next)) return moveInfo;
-        queue.push({ node: next, firstMove: moveInfo });
+        const key = encode(targetSide, nextMap);
+        if (visited.has(key)) continue;
+        visited.add(key);
+
+        const moveInfo = cur.firstMove || { passengers: chosen, to: targetSide };
+        const nextSteps = cur.steps + 1;
+        if (isGoal(nextMap)) {
+          return { steps: nextSteps, firstMove: moveInfo };
+        }
+        queue.push({ side: targetSide, map: nextMap, steps: nextSteps, firstMove: moveInfo });
       }
     }
     return null;
   }
 
-  // ==================== ARAYÜZ GÜNCELLEME ====================
+  // ==================== ARAYÜZ & AKTİF KOŞUL KONTROLÜ GÜNCELLEME ====================
   function updateUI() {
+    const lvl = getLevel();
     elMoveCount.textContent = String(state.moves);
 
-    const onRight = CHAR_IDS.filter((id) => state.locations[id] === 'right').length;
-    elRightCount.textContent = `${onRight} / 4`;
+    const onRight = lvl.chars.filter((id) => state.locations[id] === 'right').length;
+    elRightCount.textContent = `${onRight} / ${lvl.chars.length}`;
+
+    // Seviye 2'de kıyılardaki değişken sayılarını anlık göster
+    if (lvl.id === 2) {
+      const lw = countTypeOnSide('left', 'wolf');
+      const ls = countTypeOnSide('left', 'sheep');
+      const rw = countTypeOnSide('right', 'wolf');
+      const rs = countTypeOnSide('right', 'sheep');
+      elLeftBankSummary.textContent = `(🐺${lw} 🐑${ls})`;
+      elRightBankSummary.textContent = `(🐺${rw} 🐑${rs})`;
+    } else {
+      elLeftBankSummary.textContent = '(Başlangıç)';
+      elRightBankSummary.textContent = '(Hedef)';
+    }
 
     btnUndo.disabled = isBusy || historyStack.length === 0;
 
-    // Sandal koltuk göstergeleri
+    // Alt rıhtım & sandal kapasitesi
     const farmerAboard = isFarmerInBoat();
-    const passenger = getPassengerInBoat();
+    const passengers = getPassengersInBoat();
+    const totalKg = lvl.capacityMode === 'weight' ? getBoatTotalWeight() : 0;
+    const isOverWeight = lvl.capacityMode === 'weight' && totalKg > lvl.maxWeight;
 
     if (farmerAboard) {
-      elSeatFarmerVal.textContent = '🧑‍🌾 Çiftçi (Hazır)';
+      elSeatFarmerVal.textContent = lvl.capacityMode === 'weight'
+        ? '🧑‍🌾 Çiftçi (60 kg)'
+        : '🧑‍🌾 Çiftçi (Hazır)';
       elSeatFarmerVal.classList.remove('empty');
     } else {
       elSeatFarmerVal.textContent = 'Boş (Çiftçi gerekli)';
       elSeatFarmerVal.classList.add('empty');
     }
 
-    if (passenger) {
-      elSeatPassengerVal.textContent = `${CHAR_META[passenger].emoji} ${CHAR_META[passenger].name}`;
-      elSeatPassengerVal.classList.remove('empty');
+    if (lvl.capacityMode === 'weight') {
+      elSeatPassengerRole.textContent = 'Sandal Ağırlığı (≤ 100 kg):';
+      elSeatPassengerVal.textContent = isOverWeight
+        ? `⚠️ ${totalKg} / ${lvl.maxWeight} kg (Aşırı Yük!)`
+        : `${totalKg} / ${lvl.maxWeight} kg`;
+      elSeatPassengerVal.classList.toggle('empty', totalKg === 0);
+      elSeatPassengerVal.classList.toggle('over-limit', isOverWeight);
+
+      elDockWeightBarWrap.hidden = false;
+      const pct = Math.min(100, Math.round((totalKg / lvl.maxWeight) * 100));
+      elDockWeightFill.style.width = `${pct}%`;
+      elDockWeightFill.classList.toggle('near-limit', !isOverWeight && totalKg >= 80);
+      elDockWeightFill.classList.toggle('over-limit', isOverWeight);
+
+      // SVG sandal üstü canlı kapasite barı
+      updateBoatWeightBarSVG(totalKg, lvl.maxWeight);
+      boatVisual.sinkY = isOverWeight ? 7 : (totalKg >= 80 ? 3 : 0);
     } else {
-      elSeatPassengerVal.textContent = 'Boş (İsteğe bağlı)';
-      elSeatPassengerVal.classList.add('empty');
+      elDockWeightBarWrap.hidden = true;
+      elSeatPassengerVal.classList.remove('over-limit');
+      elSeatPassengerRole.textContent = `Yolcu (En fazla ${lvl.maxPassengers}):`;
+
+      if (passengers.length > 0) {
+        elSeatPassengerVal.textContent = passengers
+          .map((id) => `${lvl.meta[id].emoji} ${lvl.meta[id].name}`)
+          .join(', ');
+        elSeatPassengerVal.classList.remove('empty');
+      } else {
+        elSeatPassengerVal.textContent = 'Boş (İsteğe bağlı)';
+        elSeatPassengerVal.classList.add('empty');
+      }
+
+      if (boatSeatHints) {
+        const full = farmerAboard && passengers.length >= lvl.maxPassengers;
+        boatSeatHints.style.opacity = full ? '0' : '0.72';
+      }
+      boatVisual.sinkY = 0;
     }
 
-    // Sandal üzerindeki koltuk ipucu noktaları
-    if (boatSeatHints) {
-      boatSeatHints.style.opacity = farmerAboard && passenger ? '0' : '0.72';
-    }
-
-    // "Karşıya Geç" butonu görünümü ve yönü
+    // "Karşıya Geç" butonu
     btnCross.disabled = isBusy || gameEnded;
     btnCross.classList.toggle('dir-left', state.boatSide === 'right');
-    btnCross.classList.toggle('needs-farmer', !farmerAboard && !gameEnded);
-    btnCross.classList.toggle('ready-pulse', farmerAboard && !isBusy && !gameEnded);
+    btnCross.classList.toggle('needs-farmer', (!farmerAboard || isOverWeight) && !gameEnded);
+    btnCross.classList.toggle('ready-pulse', farmerAboard && !isOverWeight && !isBusy && !gameEnded);
     crossText.textContent = 'Karşıya Geç';
     btnCross.title = state.boatSide === 'left' ? 'Sandalı sağ kıyıya geçir' : 'Sandalı sol kıyıya geçir';
 
-    // Karakter tıklanabilirlik ve gölge görünürlüğü
-    CHAR_IDS.forEach((id) => {
+    // Karakter tıklanabilirlik, zemin gölgesi ve ağırlık etiketi görünürlüğü
+    lvl.chars.forEach((id) => {
       const node = charEls[id];
+      if (!node) return;
       const loc = state.locations[id];
       const clickable = !isBusy && !gameEnded && (loc === 'boat' || loc === state.boatSide);
       node.classList.toggle('disabled-char', !clickable);
 
-      // Sandalda oturan karakterin zemin gölgesini gizle
       const shadow = node.querySelector('.char-ground-shadow');
-      if (shadow) {
-        shadow.style.opacity = loc === 'boat' ? '0' : '0.32';
-      }
+      if (shadow) shadow.style.opacity = loc === 'boat' ? '0' : '0.32';
+
+      const wBadge = node.querySelector('.char-weight-badge');
+      if (wBadge) wBadge.style.opacity = loc === 'boat' ? '0' : '1';
     });
 
-    // Canlı Koşul-Sonuç (EĞER - İSE) göstergeleri
+    // Kural kartları & Aktif Koşul Kontrolü kutusu
+    updateRulesAndLiveCondition(farmerAboard, passengers, totalKg, isOverWeight);
+
+    // Algoritma adımları günlüğü
+    renderAlgoLog();
+  }
+
+  function updateBoatWeightBarSVG(totalKg, maxKg) {
+    const over = totalKg > maxKg;
+    const ratio = Math.min(1, totalKg / maxKg);
+    const barWidth = Math.round(ratio * 120);
+
+    boatWeightText.textContent = over
+      ? `⚠️ ${totalKg} / ${maxKg} kg!`
+      : `⚖️ ${totalKg} / ${maxKg} kg`;
+    boatWeightText.setAttribute('fill', over ? '#b91c1c' : '#4a2b10');
+    boatWeightFillRect.setAttribute('width', String(barWidth));
+    boatWeightFillRect.setAttribute('fill', over ? '#e14d57' : (totalKg >= 80 ? '#f59e0b' : '#22a06b'));
+    boatWeightBar.classList.toggle('weight-bar-overload', over);
+  }
+
+  function updateRulesAndLiveCondition(farmerAboard, passengers, totalKg, isOverWeight) {
+    const lvl = getLevel();
+
     if (!gameEnded) {
-      setRuleStatus(ruleFarmer, farmerAboard ? 'ok' : 'neutral', farmerAboard ? '✓' : '!');
-      setRuleStatus(ruleCapacity, 'ok', '✓');
-      setRuleStatus(ruleWolfSheep, 'ok', '✓');
-      setRuleStatus(ruleSheepCabbage, 'ok', '✓');
+      const rFarmer = document.getElementById('rFarmer');
+      if (rFarmer) setRuleStatus(rFarmer, farmerAboard ? 'ok' : 'neutral', farmerAboard ? '✓' : '!');
+
+      const rCap = document.getElementById('rCap');
+      if (rCap) setRuleStatus(rCap, 'ok', '✓');
+
+      const rWeight = document.getElementById('rWeight');
+      if (rWeight) setRuleStatus(rWeight, isOverWeight ? 'danger' : 'ok', isOverWeight ? '✕' : '✓');
+
+      const rCount = document.getElementById('rCount');
+      if (rCount) setRuleStatus(rCount, 'ok', '✓');
+
+      const rWolf = document.getElementById('rWolf');
+      if (rWolf) setRuleStatus(rWolf, 'ok', '✓');
+
+      const rCab = document.getElementById('rCab');
+      if (rCab) setRuleStatus(rCab, 'ok', '✓');
     }
 
-    // Algoritma hamle günlüğü
-    renderAlgoLog();
+    // Aktif Koşul Kontrolü Kutusu
+    elLiveCondBox.classList.remove('cond-ok', 'cond-warn', 'cond-danger');
+
+    if (lastConditionOverride) {
+      elLiveCondBox.classList.add(`cond-${lastConditionOverride.status}`);
+      elLiveCondState.textContent = lastConditionOverride.stateLabel;
+      elLiveCondExpr.textContent = lastConditionOverride.expr;
+    } else if (isOverWeight) {
+      elLiveCondBox.classList.add('cond-danger');
+      elLiveCondState.textContent = 'LİMİT AŞILDI ✕';
+      elLiveCondExpr.textContent = `EĞER (ToplamAğırlık (${totalKg} kg) <= ${lvl.maxWeight} kg) → YANLIŞ! Sandal hareket edemez.`;
+    } else if (!farmerAboard && !gameEnded) {
+      elLiveCondBox.classList.add('cond-warn');
+      elLiveCondState.textContent = 'ÇİFTÇİ BEKLENİYOR';
+      elLiveCondExpr.textContent = lvl.defaultFormula;
+    } else {
+      elLiveCondBox.classList.add('cond-ok');
+      elLiveCondState.textContent = gameEnded ? 'TAMAMLANDI ✓' : 'KOŞULLAR GÜVENLİ ✓';
+      elLiveCondExpr.textContent = lvl.defaultFormula;
+    }
+
+    // Canlı Değişken Takip Çipleri
+    const chips = [];
+    const sideStr = state.boatSide === 'left' ? 'Sol' : 'Sağ';
+    chips.push({ text: `Sandal=${sideStr}`, danger: false });
+    chips.push({ text: `ÇiftçiSandalda=${farmerAboard ? 'DOĞRU' : 'YANLIŞ'}`, danger: false });
+
+    if (lvl.id === 2) {
+      const lw = countTypeOnSide('left', 'wolf');
+      const ls = countTypeOnSide('left', 'sheep');
+      const rw = countTypeOnSide('right', 'wolf');
+      const rs = countTypeOnSide('right', 'sheep');
+      chips.push({ text: `Sol(K:${lw}, Kz:${ls})`, danger: state.locations.farmer !== 'left' && ls > 0 && lw > ls });
+      chips.push({ text: `Sağ(K:${rw}, Kz:${rs})`, danger: state.locations.farmer !== 'right' && rs > 0 && rw > rs });
+      chips.push({ text: `Yolcu=${passengers.length}/${lvl.maxPassengers}`, danger: false });
+    } else if (lvl.id === 3) {
+      chips.push({ text: `Ağırlık=${totalKg}/${lvl.maxWeight} kg`, danger: isOverWeight });
+      chips.push({ text: `Kalan=${Math.max(0, lvl.maxWeight - totalKg)} kg`, danger: isOverWeight });
+    } else {
+      chips.push({ text: `Yolcu=${passengers.length}/${lvl.maxPassengers}`, danger: false });
+    }
+
+    elLiveCondVars.innerHTML = chips
+      .map((c) => `<span class="var-chip ${c.danger ? 'var-danger' : ''}">${c.text}</span>`)
+      .join('');
   }
 
   function setRuleStatus(el, status, symbol) {
@@ -922,7 +1517,8 @@
   }
 
   function clearCharacterAnimStates() {
-    CHAR_IDS.forEach((id) => {
+    getLevel().chars.forEach((id) => {
+      if (!charEls[id]) return;
       charEls[id].classList.remove(
         'anim-wolf-hungry',
         'anim-sheep-scared',
@@ -940,11 +1536,15 @@
     const node = charEls[charId];
     if (!node) return;
     node.classList.add('highlight-pulse');
-    scheduleTimeout(() => node.classList.remove('highlight-pulse'), 2400);
+    scheduleTimeout(() => {
+      if (charEls[charId]) charEls[charId].classList.remove('highlight-pulse');
+    }, 2400);
   }
 
   function clearHighlights() {
-    CHAR_IDS.forEach((id) => charEls[id].classList.remove('highlight-pulse'));
+    getLevel().chars.forEach((id) => {
+      if (charEls[id]) charEls[id].classList.remove('highlight-pulse');
+    });
   }
 
   function triggerBoatShake() {
@@ -955,9 +1555,8 @@
     });
   }
 
-  // ==================== CANVAS EFEKTLERİ (DALGA İZİ, SIÇRAMA, KONFETİ) ====================
+  // ==================== CANVAS EFEKTLERİ ====================
   function emitBoatWake(svgX, svgY, dir) {
-    // Sandalın arkasında (kıç tarafında) su dalgası izi ve köpük damlaları
     const sternX = svgX - dir * 74;
     const waterY = svgY + 30;
 
@@ -966,8 +1565,7 @@
       sy: waterY + (Math.random() - 0.5) * 8,
       dir,
       age: 0,
-      maxAge: 950,
-      radius: 10
+      maxAge: 950
     });
 
     for (let i = 0; i < 2; i++) {
@@ -1002,8 +1600,7 @@
   }
 
   function emitRiverSparkle() {
-    // Nehir üzerinde rastgele parıldayan güneş ışığı noktaları
-    const t = Math.random(); // 0: uzak, 1: yakın
+    const t = Math.random();
     const sy = 310 + t * 330;
     const halfWidth = 62 + t * 205;
     const sx = 640 + (Math.random() * 2 - 1) * halfWidth * 0.78;
@@ -1044,7 +1641,6 @@
     });
   }
 
-  // ==================== EASING FONKSİYONLARI ====================
   function easeInOutCubic(t) {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
@@ -1060,6 +1656,7 @@
     const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
     lastFrameTime = now;
     const tSec = now / 1000;
+    const lvl = getLevel();
 
     // 1. Sandal hareketi & su üzerinde sallanma fiziği
     if (boatVisual.crossing) {
@@ -1069,15 +1666,12 @@
 
       boatVisual.x = c.fromX + (c.toX - c.fromX) * eased;
       boatVisual.bobY = Math.sin(p * Math.PI * 5) * 4.5;
-      // Geçiş sırasında hafifçe öne-arkaya yalpalama
       boatVisual.tilt = Math.sin(p * Math.PI * 3.5) * 3.8 + c.dir * Math.sin(p * Math.PI) * 2.2;
-      // Kürek çekme hareketi
       boatVisual.oarAngle = -18 + Math.sin(p * Math.PI * 6) * 32 * c.dir;
 
-      // Su dalgası izi oluştur
       if (now - lastWakeEmit > 34 && p > 0.04 && p < 0.96) {
         lastWakeEmit = now;
-        emitBoatWake(boatVisual.x, boatVisual.y + boatVisual.bobY, c.dir);
+        emitBoatWake(boatVisual.x, boatVisual.y + boatVisual.bobY + boatVisual.sinkY, c.dir);
       }
 
       if (p >= 1) {
@@ -1086,34 +1680,39 @@
         if (done) done();
       }
     } else {
-      // İskeledeyken hafif dalga salınımı
       boatVisual.bobY = Math.sin(tSec * 2.3) * 3.2;
       boatVisual.tilt = Math.sin(tSec * 1.65) * 1.15;
       boatVisual.oarAngle = -18 + Math.sin(tSec * 2.3) * 2.5;
     }
 
-    const boatTransform = `translate(${boatVisual.x.toFixed(2)}, ${(boatVisual.y + boatVisual.bobY).toFixed(2)}) rotate(${boatVisual.tilt.toFixed(2)})`;
+    const liveBoatY = boatVisual.y + boatVisual.bobY + boatVisual.sinkY;
+    const boatTransform = `translate(${boatVisual.x.toFixed(2)}, ${liveBoatY.toFixed(2)}) rotate(${boatVisual.tilt.toFixed(2)})`;
     boatBackGroup.setAttribute('transform', boatTransform);
     boatFrontGroup.setAttribute('transform', boatTransform);
     boatOar.setAttribute('transform', `translate(-14, 7) rotate(${boatVisual.oarAngle.toFixed(2)})`);
 
-    // 2. Karakter konumları (Zıplama / Süzülme Easing & Sandal takibi)
-    CHAR_IDS.forEach((id) => {
+    // 2. Karakter konumları (Zıplama Easing & Sandal takibi)
+    const aboardCount = lvl.chars.filter((id) => state.locations[id] === 'boat').length;
+    const crowdScale = aboardCount >= 4 ? 0.84 : (aboardCount === 3 ? 0.91 : 1);
+
+    lvl.chars.forEach((id) => {
       const vis = charVisuals[id];
+      const el = charEls[id];
+      if (!vis || !el) return;
+
       if (vis.hop) {
         const h = vis.hop;
         const p = Math.min((now - h.startTime) / h.duration, 1);
         const eased = easeOutCubic(p);
 
-        // Eğer sandala zıplıyorsa canlı sandal pozisyonunu hedefle
-        const destX = h.toBoat ? getBoatSeatPosition(id, boatVisual.x, boatVisual.y + boatVisual.bobY).x : h.toX;
-        const destY = h.toBoat ? getBoatSeatPosition(id, boatVisual.x, boatVisual.y + boatVisual.bobY).y : h.toY;
+        const dest = h.toBoat
+          ? getBoatSeatPosition(id, boatVisual.x, liveBoatY)
+          : { x: h.toX, y: h.toY };
 
         const arcHeight = Math.sin(p * Math.PI) * 82;
-        vis.x = h.fromX + (destX - h.fromX) * eased;
-        vis.y = h.fromY + (destY - h.fromY) * eased - arcHeight;
+        vis.x = h.fromX + (dest.x - h.fromX) * eased;
+        vis.y = h.fromY + (dest.y - h.fromY) * eased - arcHeight;
 
-        // Zıplama sırasında sevimli esneme (squash & stretch)
         if (p < 0.18) {
           const s = p / 0.18;
           vis.scaleX = 1 - 0.1 * s;
@@ -1129,8 +1728,8 @@
         }
 
         if (p >= 1) {
-          vis.x = destX;
-          vis.y = destY;
+          vis.x = dest.x;
+          vis.y = dest.y;
           vis.scaleX = 1;
           vis.scaleY = 1;
           const done = h.onComplete;
@@ -1138,16 +1737,16 @@
           if (done) done();
         }
       } else if (state.locations[id] === 'boat') {
-        // Sandalda oturan karakter sandalın hareketini ve hafif sallanmasını takip eder
-        const seat = getBoatSeatPosition(id, boatVisual.x, boatVisual.y + boatVisual.bobY);
-        vis.x = seat.x;
-        vis.y = seat.y;
-        vis.scaleX = 1;
-        vis.scaleY = 1;
+        const seat = getBoatSeatPosition(id, boatVisual.x, liveBoatY);
+        // Yumuşak koltuk kayması (birden fazla yolcu inip binerken)
+        vis.x += (seat.x - vis.x) * Math.min(1, dt * 14);
+        vis.y += (seat.y - vis.y) * Math.min(1, dt * 14);
+        vis.scaleX = crowdScale;
+        vis.scaleY = crowdScale;
       }
 
       const tilt = state.locations[id] === 'boat' && !vis.hop ? boatVisual.tilt * 0.7 : 0;
-      charEls[id].setAttribute(
+      el.setAttribute(
         'transform',
         `translate(${vis.x.toFixed(2)}, ${vis.y.toFixed(2)}) rotate(${tilt.toFixed(2)}) scale(${vis.scaleX.toFixed(3)}, ${vis.scaleY.toFixed(3)})`
       );
@@ -1159,7 +1758,7 @@
       emitRiverSparkle();
     }
 
-    // 4. Canvas efektlerini çiz
+    // 4. Canvas efektleri
     renderCanvasEffects(dt);
 
     requestAnimationFrame(tick);
@@ -1169,11 +1768,11 @@
     const rect = canvasEl.parentElement.getBoundingClientRect();
     ctx.clearRect(0, 0, rect.width, rect.height);
 
-    // A) Nehir yüzey parıltıları
+    // A) Nehir parıltıları
     for (let i = sparkles.length - 1; i >= 0; i--) {
       const sp = sparkles[i];
       sp.age += dt * 1000;
-      sp.sy += dt * 18; // Akıntıyla aşağı süzülür
+      sp.sy += dt * 18;
       if (sp.age >= sp.maxAge) {
         sparkles.splice(i, 1);
         continue;
@@ -1196,7 +1795,7 @@
       ctx.restore();
     }
 
-    // B) Sandal su dalgası izleri (V-şeklinde genişleyen halkalar)
+    // B) Sandal su dalgası izi
     for (let i = wakes.length - 1; i >= 0; i--) {
       const w = wakes[i];
       w.age += dt * 1000;
@@ -1225,7 +1824,7 @@
       ctx.restore();
     }
 
-    // C) Su sıçramaları ve iniş/biniş parıltıları
+    // C) Sıçrama ve parıltılar
     for (let i = splashes.length - 1; i >= 0; i--) {
       const s = splashes[i];
       s.age += dt * 1000;
@@ -1235,7 +1834,7 @@
       }
       s.sx += s.vx * dt;
       s.sy += s.vy * dt;
-      s.vy += 170 * dt; // Yerçekimi
+      s.vy += 170 * dt;
 
       const p = s.age / s.maxAge;
       const pt = svgToCanvas(s.sx, s.sy);
@@ -1248,7 +1847,7 @@
       ctx.restore();
     }
 
-    // D) Kazanma konfetileri
+    // D) Konfetiler
     for (let i = confetti.length - 1; i >= 0; i--) {
       const c = confetti[i];
       c.age += dt * 1000;
@@ -1258,8 +1857,8 @@
       }
       c.sx += c.vx * dt;
       c.sy += c.vy * dt;
-      c.vy += 380 * dt; // Yerçekimi
-      c.vx *= 0.992;    // Hava sürtünmesi
+      c.vy += 380 * dt;
+      c.vx *= 0.992;
       c.rot += c.vrot * dt;
 
       const p = c.age / c.maxAge;

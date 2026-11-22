@@ -164,9 +164,27 @@
           <stop offset="100%" stop-color="#3a4554" />
         </linearGradient>
 
+        <linearGradient id="wolf2FurGrad" x1="0" y1="0" x2="0.5" y2="1">
+          <stop offset="0%" stop-color="#6c7482" />
+          <stop offset="52%" stop-color="#454c59" />
+          <stop offset="100%" stop-color="#272c36" />
+        </linearGradient>
+
         <linearGradient id="wolfBellyGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#f2f4f7" />
           <stop offset="100%" stop-color="#cad2dc" />
+        </linearGradient>
+
+        <radialGradient id="feedSackGrad" cx="38%" cy="30%" r="72%">
+          <stop offset="0%" stop-color="#f2d399" />
+          <stop offset="58%" stop-color="#d4a660" />
+          <stop offset="100%" stop-color="#9e6d30" />
+        </radialGradient>
+
+        <linearGradient id="feedRopeGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#8f541c" />
+          <stop offset="50%" stop-color="#d99a4a" />
+          <stop offset="100%" stop-color="#7a4414" />
         </linearGradient>
 
         <radialGradient id="woolGrad" cx="36%" cy="28%" r="72%">
@@ -503,24 +521,30 @@
           <!-- Sandal İç Gövdesi -->
           <path d="M-86,-4 C-64,-18 64,-18 86,-4 L72,26 C40,36 -40,36 -72,26 Z" fill="url(#boatHullInner)" stroke="#42200a" stroke-width="2" />
           <!-- Oturma Sıraları -->
-          <rect x="-56" y="-4" width="38" height="10" rx="3" fill="url(#woodPlank)" stroke="#4f290e" stroke-width="1.5" />
-          <rect x="18" y="-4" width="38" height="10" rx="3" fill="url(#woodPlank)" stroke="#4f290e" stroke-width="1.5" />
-          <!-- Koltuk İpucu Noktaları (Boşken görünür) -->
+          <rect x="-60" y="-4" width="38" height="10" rx="3" fill="url(#woodPlank)" stroke="#4f290e" stroke-width="1.5" />
+          <rect x="-14" y="-4" width="28" height="10" rx="3" fill="url(#woodPlank)" stroke="#4f290e" stroke-width="1.5" />
+          <rect x="22" y="-4" width="38" height="10" rx="3" fill="url(#woodPlank)" stroke="#4f290e" stroke-width="1.5" />
+          <!-- Koltuk İpucu Noktaları (Seviyeye göre güncellenir) -->
           <g id="boatSeatHints" opacity="0.72">
-            <circle cx="-37" cy="-16" r="10" fill="#fff4d2" stroke="#d49017" stroke-width="2" stroke-dasharray="3 2" />
-            <text x="-37" y="-12" text-anchor="middle" font-size="11" font-weight="800" fill="#8f5406">🧑‍🌾</text>
-            <circle cx="37" cy="-16" r="10" fill="#e6fbf4" stroke="#22a06b" stroke-width="2" stroke-dasharray="3 2" />
-            <text x="37" y="-12" text-anchor="middle" font-size="11" font-weight="800" fill="#166e48">+</text>
+            <g id="seatHintCaptain">
+              <circle cx="-37" cy="-16" r="10" fill="#fff4d2" stroke="#d49017" stroke-width="2" stroke-dasharray="3 2" />
+              <text x="-37" y="-12" text-anchor="middle" font-size="11" font-weight="800" fill="#8f5406">🧑‍🌾</text>
+            </g>
+            <g id="seatHintP1">
+              <circle cx="37" cy="-16" r="10" fill="#e6fbf4" stroke="#22a06b" stroke-width="2" stroke-dasharray="3 2" />
+              <text x="37" y="-12" text-anchor="middle" font-size="11" font-weight="800" fill="#166e48">+</text>
+            </g>
+            <g id="seatHintP2" style="display:none">
+              <circle cx="48" cy="-16" r="10" fill="#e6fbf4" stroke="#22a06b" stroke-width="2" stroke-dasharray="3 2" />
+              <text x="48" y="-12" text-anchor="middle" font-size="11" font-weight="800" fill="#166e48">+</text>
+            </g>
           </g>
         </g>
       </g>
 
       <!-- ==================== 7. KARAKTERLER KATMANI ==================== -->
       <g id="charactersLayer">
-        ${buildWolfSVG()}
-        ${buildSheepSVG()}
-        ${buildCabbageSVG()}
-        ${buildFarmerSVG()}
+        ${buildCharactersForLevel(1)}
       </g>
 
       <!-- ==================== 8. SANDAL ÖN KATMAN & KÜREK ==================== -->
@@ -543,7 +567,53 @@
           </g>
           <!-- Su Köpüğü Ön Çizgi -->
           <path d="M-66,34 Q-25,40 0,38 Q25,40 66,34" fill="none" stroke="#e4fbff" stroke-width="2.6" stroke-linecap="round" opacity="0.72" />
+
+          <!-- Seviye 3: Sandalın Üzerinde Canlı Ağırlık Kapasite Barı -->
+          <g id="boatWeightBar" transform="translate(0, -142)" style="display:none">
+            <rect x="-74" y="-18" width="148" height="34" rx="12" fill="rgba(255, 251, 240, 0.96)" stroke="#b88446" stroke-width="2.2" filter="url(#softShadow)" />
+            <text id="boatWeightText" x="0" y="-3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="12.5" font-weight="700" fill="#4a2b10">⚖️ 0 / 100 kg</text>
+            <rect x="-60" y="4" width="120" height="7" rx="3.5" fill="#e6d4b3" />
+            <rect id="boatWeightFillRect" x="-60" y="4" width="0" height="7" rx="3.5" fill="#22a06b" />
+          </g>
         </g>
+      </g>
+    `;
+  }
+
+  function buildCharactersForLevel(levelId) {
+    if (levelId === 2) {
+      return [
+        buildWolfSVG({ id: 'wolf1', label: 'Kurt 1', variant: 1, x: 92, y: 446 }),
+        buildWolfSVG({ id: 'wolf2', label: 'Kurt 2', variant: 2, x: 184, y: 454 }),
+        buildSheepSVG({ id: 'sheep1', label: 'Kuzu 1', variant: 1, x: 108, y: 544 }),
+        buildSheepSVG({ id: 'sheep2', label: 'Kuzu 2', variant: 2, x: 212, y: 546 }),
+        buildFarmerSVG({ id: 'farmer', label: 'Çiftçi', x: 312, y: 472 })
+      ].join('');
+    }
+    if (levelId === 3) {
+      return [
+        buildWolfSVG({ id: 'wolf', label: 'Kurt', variant: 1, weight: 30, x: 96, y: 444 }),
+        buildSheepSVG({ id: 'sheep', label: 'Kuzu', variant: 1, weight: 20, x: 204, y: 468 }),
+        buildFeedSackSVG({ id: 'feed', label: 'Yem Çuvalı', weight: 40, x: 102, y: 546 }),
+        buildCabbageSVG({ id: 'cabbage', label: 'Lahana', weight: 10, x: 212, y: 554 }),
+        buildFarmerSVG({ id: 'farmer', label: 'Çiftçi', weight: 60, x: 314, y: 470 })
+      ].join('');
+    }
+    // Seviye 1: Klasik Kurt, Kuzu ve Lahana (aynen korunur)
+    return [
+      buildWolfSVG({ id: 'wolf', label: 'Kurt', variant: 1, x: 108, y: 458 }),
+      buildSheepSVG({ id: 'sheep', label: 'Kuzu', variant: 1, x: 215, y: 496 }),
+      buildCabbageSVG({ id: 'cabbage', label: 'Lahana', x: 148, y: 556 }),
+      buildFarmerSVG({ id: 'farmer', label: 'Çiftçi', x: 315, y: 468 })
+    ].join('');
+  }
+
+  function buildWeightBadge(weight, yOffset) {
+    if (!weight) return '';
+    return `
+      <g class="char-weight-badge" transform="translate(0, ${yOffset})">
+        <rect x="-25" y="-9" width="50" height="17" rx="8.5" fill="#fff2cc" stroke="#d49017" stroke-width="1.5" />
+        <text x="0" y="3" text-anchor="middle" font-family="Nunito, sans-serif" font-size="11" font-weight="900" fill="#7a4700">${weight} kg</text>
       </g>
     `;
   }
@@ -578,9 +648,11 @@
   }
 
   /* ==================== KARAKTER 1: ÇİFTÇİ ==================== */
-  function buildFarmerSVG() {
+  function buildFarmerSVG(opts) {
+    const o = Object.assign({ id: 'farmer', label: 'Çiftçi', weight: 0, x: 315, y: 468 }, opts);
+    const aria = o.weight ? `${o.label} (${o.weight} kg)` : o.label;
     return `
-      <g id="char-farmer" class="character-node" data-char="farmer" transform="translate(315, 468)" role="button" tabindex="0" aria-label="Çiftçi">
+      <g id="char-${o.id}" class="character-node" data-char="${o.id}" transform="translate(${o.x}, ${o.y})" role="button" tabindex="0" aria-label="${aria}">
         <!-- Zemin Gölgesi -->
         <ellipse class="char-ground-shadow" cx="0" cy="8" rx="34" ry="10" fill="#1b4018" opacity="0.32" />
         <!-- Seçim / Hover Parlama Halkası -->
@@ -620,7 +692,7 @@
             <ellipse cx="-13" cy="-72" rx="5.5" ry="3.2" fill="#ff8f8f" opacity="0.55" />
             <ellipse cx="13" cy="-72" rx="5.5" ry="3.2" fill="#ff8f8f" opacity="0.55" />
 
-            <!-- Gözler (Normal & Endişeli) -->
+            <!-- Gözler -->
             <g class="eye-blink">
               <circle cx="-8.5" cy="-80" r="3.6" fill="#2b1e16" />
               <circle cx="-7.3" cy="-81.4" r="1.3" fill="#ffffff" />
@@ -646,14 +718,15 @@
           </g>
         </g>
 
-        <!-- İsim Etiketi -->
+        <!-- İsim Etiketi & Ağırlık -->
         <g class="char-label" transform="translate(0, 26)">
           <rect x="-32" y="-12" width="64" height="22" rx="11" fill="rgba(255, 250, 238, 0.92)" stroke="#c69a5a" stroke-width="1.8" />
-          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13" font-weight="700" fill="#4a2b10">Çiftçi</text>
+          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13" font-weight="700" fill="#4a2b10">${o.label}</text>
         </g>
+        ${buildWeightBadge(o.weight, 47)}
 
         <!-- Konuşma Balonu -->
-        <g class="speech-bubble" id="bubble-farmer" transform="translate(0, -130)">
+        <g class="speech-bubble" id="bubble-${o.id}" transform="translate(0, -130)">
           <rect x="-66" y="-26" width="132" height="32" rx="14" fill="#ffffff" stroke="#d49017" stroke-width="2.4" />
           <polygon points="-7,5 7,5 0,14" fill="#ffffff" stroke="#d49017" stroke-width="2.2" />
           <rect x="-9" y="2" width="18" height="5" fill="#ffffff" />
@@ -663,10 +736,19 @@
     `;
   }
 
-  /* ==================== KARAKTER 2: KURT ==================== */
-  function buildWolfSVG() {
+  /* ==================== KARAKTER 2: KURT (1 & 2) ==================== */
+  function buildWolfSVG(opts) {
+    const o = Object.assign({ id: 'wolf', label: 'Kurt', variant: 1, weight: 0, x: 108, y: 458 }, opts);
+    const furGrad = o.variant === 2 ? 'url(#wolf2FurGrad)' : 'url(#wolfFurGrad)';
+    const pawFill = o.variant === 2 ? '#343b47' : '#445061';
+    const showBandana = o.id === 'wolf1' || o.id === 'wolf2';
+    const bandanaColor = o.variant === 2 ? '#2980b9' : '#d97706';
+    const bandanaStroke = o.variant === 2 ? '#1a5276' : '#92400e';
+    const labelW = o.label.length > 5 ? 68 : 60;
+    const aria = o.weight ? `${o.label} (${o.weight} kg)` : o.label;
+
     return `
-      <g id="char-wolf" class="character-node" data-char="wolf" transform="translate(108, 458)" role="button" tabindex="0" aria-label="Kurt">
+      <g id="char-${o.id}" class="character-node" data-char="${o.id}" transform="translate(${o.x}, ${o.y})" role="button" tabindex="0" aria-label="${aria}">
         <ellipse class="char-ground-shadow" cx="0" cy="8" rx="34" ry="10" fill="#1b4018" opacity="0.32" />
         <ellipse class="hover-ring" cx="0" cy="8" rx="40" ry="14" fill="none" stroke="#ffe169" stroke-width="4" filter="url(#glowRing)" />
 
@@ -674,31 +756,36 @@
           <g class="char-idle">
             <!-- Kabarık Kuyruk -->
             <g class="wolf-tail">
-              <path d="M-18,-16 C-44,-22 -52,-48 -36,-56 C-24,-62 -16,-44 -14,-28 Z" fill="url(#wolfFurGrad)" stroke="#2e3845" stroke-width="2.2" />
+              <path d="M-18,-16 C-44,-22 -52,-48 -36,-56 C-24,-62 -16,-44 -14,-28 Z" fill="${furGrad}" stroke="#2e3845" stroke-width="2.2" />
               <path d="M-40,-54 C-32,-58 -24,-50 -24,-40 C-32,-42 -39,-47 -40,-54 Z" fill="#f0f4f8" />
             </g>
 
             <!-- Arka Patiler -->
-            <ellipse cx="-16" cy="4" rx="10" ry="6" fill="#445061" stroke="#2a3340" stroke-width="2" />
-            <ellipse cx="16" cy="4" rx="10" ry="6" fill="#445061" stroke="#2a3340" stroke-width="2" />
+            <ellipse cx="-16" cy="4" rx="10" ry="6" fill="${pawFill}" stroke="#2a3340" stroke-width="2" />
+            <ellipse cx="16" cy="4" rx="10" ry="6" fill="${pawFill}" stroke="#2a3340" stroke-width="2" />
 
             <!-- Gövde -->
-            <path d="M-23,-48 C-28,-24 -24,-6 -16,3 L16,3 C24,-6 28,-24 23,-48 Z" fill="url(#wolfFurGrad)" stroke="#2e3845" stroke-width="2.2" />
+            <path d="M-23,-48 C-28,-24 -24,-6 -16,3 L16,3 C24,-6 28,-24 23,-48 Z" fill="${furGrad}" stroke="#2e3845" stroke-width="2.2" />
             <!-- Açık Renkli Göğüs Kürkü -->
             <path d="M-12,-42 C-16,-24 -12,-8 0,-4 C12,-8 16,-24 12,-42 Q0,-36 -12,-42 Z" fill="url(#wolfBellyGrad)" />
+            <!-- Seviye 2'de Kurt 1 / Kurt 2 ayrım bandanası -->
+            ${showBandana ? `
+              <path d="M-16,-47 Q0,-40 16,-47 L12,-39 L0,-31 L-12,-39 Z" fill="${bandanaColor}" stroke="${bandanaStroke}" stroke-width="1.6" stroke-linejoin="round" />
+              <text x="0" y="-37" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="10" font-weight="700" fill="#ffffff">${o.variant}</text>
+            ` : ''}
             <!-- Ön Patiler -->
             <path d="M-14,-20 L-10,4 M14,-20 L10,4" stroke="#2e3845" stroke-width="2" />
             <ellipse cx="-9" cy="5" rx="7.5" ry="5" fill="#e2e8f0" stroke="#2e3845" stroke-width="1.8" />
             <ellipse cx="9" cy="5" rx="7.5" ry="5" fill="#e2e8f0" stroke="#2e3845" stroke-width="1.8" />
 
             <!-- Sivri Kulaklar -->
-            <polygon points="-22,-78 -30,-108 -6,-92" fill="url(#wolfFurGrad)" stroke="#2e3845" stroke-width="2.2" stroke-linejoin="round" />
+            <polygon points="-22,-78 -30,-108 -6,-92" fill="${furGrad}" stroke="#2e3845" stroke-width="2.2" stroke-linejoin="round" />
             <polygon points="-20,-83 -25,-100 -11,-90" fill="#f2a0a8" />
-            <polygon points="22,-78 30,-108 6,-92" fill="url(#wolfFurGrad)" stroke="#2e3845" stroke-width="2.2" stroke-linejoin="round" />
+            <polygon points="22,-78 30,-108 6,-92" fill="${furGrad}" stroke="#2e3845" stroke-width="2.2" stroke-linejoin="round" />
             <polygon points="20,-83 25,-100 11,-90" fill="#f2a0a8" />
 
             <!-- Kafa -->
-            <path d="M-26,-74 C-28,-94 -12,-102 0,-102 C12,-102 28,-94 26,-74 C30,-64 20,-50 0,-48 C-20,-50 -30,-64 -26,-74 Z" fill="url(#wolfFurGrad)" stroke="#2e3845" stroke-width="2.2" />
+            <path d="M-26,-74 C-28,-94 -12,-102 0,-102 C12,-102 28,-94 26,-74 C30,-64 20,-50 0,-48 C-20,-50 -30,-64 -26,-74 Z" fill="${furGrad}" stroke="#2e3845" stroke-width="2.2" />
             <!-- Yanak Tüy Tutamları & Ağız Bölgesi -->
             <path d="M-21,-65 C-14,-74 14,-74 21,-65 C18,-52 10,-48 0,-48 C-10,-48 -18,-52 -21,-65 Z" fill="url(#wolfBellyGrad)" />
 
@@ -723,7 +810,7 @@
             <polygon points="-7,-55 -4.5,-50 -2,-54" fill="#ffffff" stroke="#2a3340" stroke-width="1" />
             <polygon points="7,-55 4.5,-50 2,-54" fill="#ffffff" stroke="#2a3340" stroke-width="1" />
 
-            <!-- Açlık Mikro Animasyonu: Dil & Salya Damlaları (Sadece ihlalde görünür) -->
+            <!-- Açlık Mikro Animasyonu: Dil & Salya Damlaları -->
             <g class="wolf-hungry-extras">
               <path class="drool-drop drool-drop-1" d="M2,-53 C8,-53 9,-41 3,-41 C-2,-41 -2,-53 2,-53 Z" fill="#ff6b81" stroke="#b82c42" stroke-width="1.4" />
               <path class="drool-drop drool-drop-1" d="M-7,-50 Q-11,-42 -7,-38 Q-3,-42 -7,-50 Z" fill="url(#droolGrad)" stroke="#2f9ec4" stroke-width="1.2" />
@@ -733,11 +820,12 @@
         </g>
 
         <g class="char-label" transform="translate(0, 26)">
-          <rect x="-30" y="-12" width="60" height="22" rx="11" fill="rgba(255, 250, 238, 0.92)" stroke="#c69a5a" stroke-width="1.8" />
-          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13" font-weight="700" fill="#4a2b10">Kurt</text>
+          <rect x="${-labelW / 2}" y="-12" width="${labelW}" height="22" rx="11" fill="rgba(255, 250, 238, 0.92)" stroke="#c69a5a" stroke-width="1.8" />
+          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13" font-weight="700" fill="#4a2b10">${o.label}</text>
         </g>
+        ${buildWeightBadge(o.weight, 47)}
 
-        <g class="speech-bubble" id="bubble-wolf" transform="translate(0, -124)">
+        <g class="speech-bubble" id="bubble-${o.id}" transform="translate(0, -124)">
           <rect x="-74" y="-26" width="148" height="32" rx="14" fill="#fff5f5" stroke="#e14d57" stroke-width="2.4" />
           <polygon points="-7,5 7,5 0,14" fill="#fff5f5" stroke="#e14d57" stroke-width="2.2" />
           <rect x="-9" y="2" width="18" height="5" fill="#fff5f5" />
@@ -747,10 +835,15 @@
     `;
   }
 
-  /* ==================== KARAKTER 3: KUZU ==================== */
-  function buildSheepSVG() {
+  /* ==================== KARAKTER 3: KUZU (1 & 2) ==================== */
+  function buildSheepSVG(opts) {
+    const o = Object.assign({ id: 'sheep', label: 'Kuzu', variant: 1, weight: 0, x: 215, y: 496 }, opts);
+    const collarColor = o.variant === 2 ? '#2998d6' : '#e64545';
+    const labelW = o.label.length > 5 ? 68 : 60;
+    const aria = o.weight ? `${o.label} (${o.weight} kg)` : o.label;
+
     return `
-      <g id="char-sheep" class="character-node" data-char="sheep" transform="translate(215, 496)" role="button" tabindex="0" aria-label="Kuzu">
+      <g id="char-${o.id}" class="character-node" data-char="${o.id}" transform="translate(${o.x}, ${o.y})" role="button" tabindex="0" aria-label="${aria}">
         <ellipse class="char-ground-shadow" cx="0" cy="8" rx="34" ry="10" fill="#1b4018" opacity="0.32" />
         <ellipse class="hover-ring" cx="0" cy="8" rx="40" ry="14" fill="none" stroke="#ffe169" stroke-width="4" filter="url(#glowRing)" />
 
@@ -774,8 +867,8 @@
             <!-- Yün İç Yumuşatma -->
             <ellipse cx="0" cy="-39" rx="24" ry="18" fill="url(#woolGrad)" />
 
-            <!-- Kırmızı Tasma & Altın Çıngırak -->
-            <path d="M-12,-46 Q0,-38 12,-46" fill="none" stroke="#e64545" stroke-width="4.5" stroke-linecap="round" />
+            <!-- Tasma & Altın Çıngırak -->
+            <path d="M-12,-46 Q0,-38 12,-46" fill="none" stroke="${collarColor}" stroke-width="4.5" stroke-linecap="round" />
             <circle cx="0" cy="-38" r="5" fill="#ffd166" stroke="#b8780b" stroke-width="1.5" />
             <circle cx="0" cy="-37" r="1.5" fill="#8f5406" />
 
@@ -793,6 +886,16 @@
               <circle cx="0" cy="-82" r="8.5" />
               <circle cx="9" cy="-78" r="7.5" />
             </g>
+            ${o.variant === 2 ? `
+              <!-- Kuzu 2 için sevimli minik papatya tokası -->
+              <g transform="translate(10, -83)">
+                <circle cx="-3" cy="0" r="2.8" fill="#90e0ff" />
+                <circle cx="3" cy="0" r="2.8" fill="#90e0ff" />
+                <circle cx="0" cy="-3" r="2.8" fill="#90e0ff" />
+                <circle cx="0" cy="3" r="2.8" fill="#90e0ff" />
+                <circle cx="0" cy="0" r="2.2" fill="#ffd166" />
+              </g>
+            ` : ''}
 
             <!-- Büyük Parlak Gözler -->
             <g class="eye-blink">
@@ -810,17 +913,18 @@
             <path d="M-4,-57 Q0,-53 4,-57 Q0,-59 -4,-57 Z" fill="#ffb0c4" />
             <path d="M-5,-53 Q0,-49 5,-53" fill="none" stroke="#ffd8e2" stroke-width="1.8" stroke-linecap="round" />
 
-            <!-- Korku Ter Damlası (Korku animasyonunda görünür) -->
+            <!-- Korku Ter Damlası -->
             <path class="sweat-drop" d="M-20,-80 Q-26,-70 -20,-66 Q-14,-70 -20,-80 Z" fill="#7be0ff" stroke="#1f8eb8" stroke-width="1.4" />
           </g>
         </g>
 
         <g class="char-label" transform="translate(0, 26)">
-          <rect x="-30" y="-12" width="60" height="22" rx="11" fill="rgba(255, 250, 238, 0.92)" stroke="#c69a5a" stroke-width="1.8" />
-          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13" font-weight="700" fill="#4a2b10">Kuzu</text>
+          <rect x="${-labelW / 2}" y="-12" width="${labelW}" height="22" rx="11" fill="rgba(255, 250, 238, 0.92)" stroke="#c69a5a" stroke-width="1.8" />
+          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13" font-weight="700" fill="#4a2b10">${o.label}</text>
         </g>
+        ${buildWeightBadge(o.weight, 47)}
 
-        <g class="speech-bubble" id="bubble-sheep" transform="translate(0, -108)">
+        <g class="speech-bubble" id="bubble-${o.id}" transform="translate(0, -108)">
           <rect x="-70" y="-26" width="140" height="32" rx="14" fill="#ffffff" stroke="#e14d57" stroke-width="2.4" />
           <polygon points="-7,5 7,5 0,14" fill="#ffffff" stroke="#e14d57" stroke-width="2.2" />
           <rect x="-9" y="2" width="18" height="5" fill="#ffffff" />
@@ -831,9 +935,12 @@
   }
 
   /* ==================== KARAKTER 4: LAHANA ==================== */
-  function buildCabbageSVG() {
+  function buildCabbageSVG(opts) {
+    const o = Object.assign({ id: 'cabbage', label: 'Lahana', weight: 0, x: 148, y: 556 }, opts);
+    const aria = o.weight ? `${o.label} (${o.weight} kg)` : o.label;
+
     return `
-      <g id="char-cabbage" class="character-node" data-char="cabbage" transform="translate(148, 556)" role="button" tabindex="0" aria-label="Lahana">
+      <g id="char-${o.id}" class="character-node" data-char="${o.id}" transform="translate(${o.x}, ${o.y})" role="button" tabindex="0" aria-label="${aria}">
         <ellipse class="char-ground-shadow" cx="0" cy="7" rx="31" ry="9" fill="#1b4018" opacity="0.32" />
         <ellipse class="hover-ring" cx="0" cy="7" rx="38" ry="13" fill="none" stroke="#ffe169" stroke-width="4" filter="url(#glowRing)" />
 
@@ -864,7 +971,7 @@
             <ellipse cx="14" cy="-22" rx="4" ry="2.2" fill="#ff9ebb" opacity="0.65" />
             <path d="M-5,-20 Q0,-15 5,-20" fill="none" stroke="#1e3b1b" stroke-width="2.2" stroke-linecap="round" />
 
-            <!-- Uçuşan Yaprak Kırıntıları (Kuzu yediğinde görünür) -->
+            <!-- Uçuşan Yaprak Kırıntıları -->
             <path class="crumb-bit crumb-bit-1" d="M-14,-44 L-6,-48 L-9,-38 Z" fill="#8be854" stroke="#2c7a2a" stroke-width="1.2" />
             <path class="crumb-bit crumb-bit-2" d="M12,-46 L20,-42 L11,-37 Z" fill="#a8f569" stroke="#2c7a2a" stroke-width="1.2" />
             <path class="crumb-bit crumb-bit-3" d="M-2,-52 L5,-55 L3,-45 Z" fill="#74d442" stroke="#2c7a2a" stroke-width="1.2" />
@@ -873,10 +980,11 @@
 
         <g class="char-label" transform="translate(0, 25)">
           <rect x="-34" y="-12" width="68" height="22" rx="11" fill="rgba(255, 250, 238, 0.92)" stroke="#c69a5a" stroke-width="1.8" />
-          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13" font-weight="700" fill="#4a2b10">Lahana</text>
+          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13" font-weight="700" fill="#4a2b10">${o.label}</text>
         </g>
+        ${buildWeightBadge(o.weight, 46)}
 
-        <g class="speech-bubble" id="bubble-cabbage" transform="translate(0, -84)">
+        <g class="speech-bubble" id="bubble-${o.id}" transform="translate(0, -84)">
           <rect x="-66" y="-26" width="132" height="32" rx="14" fill="#ffffff" stroke="#22a06b" stroke-width="2.4" />
           <polygon points="-7,5 7,5 0,14" fill="#ffffff" stroke="#22a06b" stroke-width="2.2" />
           <rect x="-9" y="2" width="18" height="5" fill="#ffffff" />
@@ -886,7 +994,72 @@
     `;
   }
 
+  /* ==================== KARAKTER 5: YEM ÇUVALI (SEVİYE 3) ==================== */
+  function buildFeedSackSVG(opts) {
+    const o = Object.assign({ id: 'feed', label: 'Yem Çuvalı', weight: 40, x: 102, y: 546 }, opts);
+    const aria = `${o.label} (${o.weight} kg)`;
+
+    return `
+      <g id="char-${o.id}" class="character-node" data-char="${o.id}" transform="translate(${o.x}, ${o.y})" role="button" tabindex="0" aria-label="${aria}">
+        <ellipse class="char-ground-shadow" cx="0" cy="8" rx="34" ry="10" fill="#1b4018" opacity="0.34" />
+        <ellipse class="hover-ring" cx="0" cy="8" rx="40" ry="14" fill="none" stroke="#ffe169" stroke-width="4" filter="url(#glowRing)" />
+
+        <g class="char-body-wrap" filter="url(#charShadow)">
+          <g class="char-idle">
+            <!-- Çuvalın Üst Büzgü Kulakçıkları -->
+            <path d="M-16,-62 C-24,-78 -6,-82 0,-68 C6,-82 24,-78 16,-62 Z" fill="url(#feedSackGrad)" stroke="#754918" stroke-width="2.2" stroke-linejoin="round" />
+
+            <!-- Çuval Gövdesi -->
+            <path d="M-16,-60 C-34,-44 -38,-14 -28,2 C-20,9 20,9 28,2 C38,-14 34,-44 16,-60 Z" fill="url(#feedSackGrad)" stroke="#754918" stroke-width="2.4" stroke-linejoin="round" />
+
+            <!-- Çuval Kumaş Gölgelendirme ve Dikiş İzleri -->
+            <path d="M-24,-10 C-18,-2 18,-2 24,-10" fill="none" stroke="#a87534" stroke-width="2" stroke-dasharray="4 4" opacity="0.7" />
+            <path d="M-21,-40 Q-14,-22 -22,-4 M21,-40 Q14,-22 22,-4" fill="none" stroke="#8f5d24" stroke-width="1.6" opacity="0.45" />
+
+            <!-- Boğum İpi -->
+            <rect x="-17" y="-64" width="34" height="8" rx="4" fill="url(#feedRopeGrad)" stroke="#5c310d" stroke-width="1.6" />
+            <path d="M8,-56 Q16,-48 18,-42" fill="none" stroke="#b57830" stroke-width="3" stroke-linecap="round" />
+
+            <!-- Üzerinde Altın Başak Amblemi -->
+            <g transform="translate(0, -14)" opacity="0.88">
+              <path d="M0,6 L0,-12" stroke="#8f5811" stroke-width="2" stroke-linecap="round" />
+              <ellipse cx="-4.5" cy="-8" rx="4" ry="2.2" fill="#ffd166" stroke="#8f5811" stroke-width="1" transform="rotate(-32 -4.5 -8)" />
+              <ellipse cx="4.5" cy="-8" rx="4" ry="2.2" fill="#ffd166" stroke="#8f5811" stroke-width="1" transform="rotate(32 4.5 -8)" />
+              <ellipse cx="-5" cy="-2" rx="4" ry="2.2" fill="#ffd166" stroke="#8f5811" stroke-width="1" transform="rotate(-32 -5 -2)" />
+              <ellipse cx="5" cy="-2" rx="4" ry="2.2" fill="#ffd166" stroke="#8f5811" stroke-width="1" transform="rotate(32 5 -2)" />
+            </g>
+
+            <!-- Sevimli Masalsı Yüz -->
+            <g class="eye-blink">
+              <circle cx="-9" cy="-40" r="3.5" fill="#3a230b" />
+              <circle cx="-7.8" cy="-41.2" r="1.2" fill="#ffffff" />
+              <circle cx="9" cy="-40" r="3.5" fill="#3a230b" />
+              <circle cx="10.2" cy="-41.2" r="1.2" fill="#ffffff" />
+            </g>
+            <ellipse cx="-15" cy="-35" rx="3.8" ry="2" fill="#ff9e80" opacity="0.6" />
+            <ellipse cx="15" cy="-35" rx="3.8" ry="2" fill="#ff9e80" opacity="0.6" />
+            <path d="M-5,-34 Q0,-29 5,-34" fill="none" stroke="#5c3511" stroke-width="2" stroke-linecap="round" />
+          </g>
+        </g>
+
+        <g class="char-label" transform="translate(0, 26)">
+          <rect x="-42" y="-12" width="84" height="22" rx="11" fill="rgba(255, 250, 238, 0.92)" stroke="#c69a5a" stroke-width="1.8" />
+          <text x="0" y="3" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="12.5" font-weight="700" fill="#4a2b10">${o.label}</text>
+        </g>
+        ${buildWeightBadge(o.weight, 47)}
+
+        <g class="speech-bubble" id="bubble-${o.id}" transform="translate(0, -96)">
+          <rect x="-66" y="-26" width="132" height="32" rx="14" fill="#ffffff" stroke="#d49017" stroke-width="2.4" />
+          <polygon points="-7,5 7,5 0,14" fill="#ffffff" stroke="#d49017" stroke-width="2.2" />
+          <rect x="-9" y="2" width="18" height="5" fill="#ffffff" />
+          <text class="bubble-text" x="0" y="-6" text-anchor="middle" font-family="Nunito, sans-serif" font-size="12.5" font-weight="800" fill="#7a4700">Ağırım ama güvenliyim!</text>
+        </g>
+      </g>
+    `;
+  }
+
   global.SceneArt = {
-    buildSceneSVG
+    buildSceneSVG,
+    buildCharactersForLevel
   };
 })(window);

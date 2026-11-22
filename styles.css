@@ -1256,6 +1256,268 @@ html, body {
   70% { transform: translateX(-5px) rotate(-1deg); }
 }
 
+/* ==================== 3 AŞAMALI SEVİYE SEÇİCİ ÇUBUĞU ==================== */
+.level-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 18px;
+  background: linear-gradient(180deg, #f3e4c3 0%, #ead6ab 100%);
+  border-bottom: 2.5px solid #cba76d;
+  box-shadow: 0 3px 10px rgba(60, 38, 16, 0.1);
+  z-index: 28;
+  flex-shrink: 0;
+}
+
+.level-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.level-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: rgba(255, 252, 244, 0.72);
+  border: 2px solid #cfa970;
+  color: #5c3c1e;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.14s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.level-tab:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.level-tab.active {
+  background: linear-gradient(180deg, #32c27e 0%, #1d9a61 100%);
+  border-color: #136b42;
+  color: #ffffff;
+  box-shadow: 0 3px 0 #136b42, 0 4px 10px rgba(19, 107, 66, 0.24);
+}
+
+.level-tab .lvl-num {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+}
+
+.level-tab .lvl-topic {
+  font-size: 0.72rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(92, 60, 30, 0.1);
+  color: #6b451f;
+  letter-spacing: 0.02em;
+}
+
+.level-tab.active .lvl-topic {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fffef6;
+}
+
+.level-tab .lvl-done {
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.level-objective-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: rgba(255, 252, 245, 0.85);
+  border: 1.8px solid #d5b47c;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #54371c;
+  white-space: nowrap;
+}
+
+.bank-mini-info {
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #1f6b47;
+  margin-left: 2px;
+}
+
+/* ==================== ALT RIHTIM AĞIRLIK BARI (SEVİYE 3) ==================== */
+.dock-weight-bar {
+  width: 148px;
+  height: 8px;
+  border-radius: 999px;
+  background: #eadcc4;
+  border: 1px solid #cbb184;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.dock-weight-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #32c27e 0%, #22a06b 100%);
+  transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease;
+}
+
+.dock-weight-fill.near-limit {
+  background: linear-gradient(90deg, #f59e0b 0%, #e07b09 100%);
+}
+
+.dock-weight-fill.over-limit {
+  background: linear-gradient(90deg, #ef4444 0%, #c81e2b 100%);
+}
+
+.seat-val.over-limit {
+  color: #c81e2b;
+  font-weight: 800;
+}
+
+/* ==================== AKTİF KOŞUL KONTROLÜ KUTUSU ==================== */
+.live-condition-box {
+  margin: 12px 14px 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 2px solid #96d8b4;
+  background: #ecfaf2;
+  transition: background 0.22s ease, border-color 0.22s ease;
+}
+
+.live-condition-box.cond-warn {
+  background: #fff7e0;
+  border-color: #eab33c;
+}
+
+.live-condition-box.cond-danger {
+  background: #ffecee;
+  border-color: #e66875;
+  animation: ruleShake 0.4s ease;
+}
+
+.live-cond-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.live-cond-badge {
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #145c3b;
+}
+
+.live-condition-box.cond-warn .live-cond-badge {
+  color: #824d05;
+}
+
+.live-condition-box.cond-danger .live-cond-badge {
+  color: #9e1824;
+}
+
+.live-cond-state {
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #22a06b;
+  color: #ffffff;
+}
+
+.live-condition-box.cond-warn .live-cond-state {
+  background: #e69512;
+}
+
+.live-condition-box.cond-danger .live-cond-state {
+  background: #dc3545;
+}
+
+.live-cond-expr {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.45;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px solid rgba(43, 33, 24, 0.12);
+  color: #25382e;
+  word-break: break-word;
+}
+
+.live-condition-box.cond-danger .live-cond-expr {
+  color: #8a1420;
+  border-color: rgba(220, 53, 69, 0.35);
+}
+
+.live-cond-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.var-chip {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(92, 60, 30, 0.18);
+  color: #4a3118;
+}
+
+.var-chip.var-danger {
+  background: #ffd9dd;
+  border-color: #e14d57;
+  color: #8f1420;
+}
+
+/* Sonraki Seviye Butonu */
+.btn-indigo {
+  color: #ffffff;
+  background: linear-gradient(180deg, #5a72f5 0%, #3b4fd6 100%);
+  border: 2.5px solid #26349e;
+  box-shadow: 0 4px 0 #26349e;
+}
+
+.btn-indigo:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.btn-indigo:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #26349e;
+}
+
+.btn-indigo[hidden] {
+  display: none;
+}
+
+/* Aşırı ağırlıkta sandalın üzerindeki bar uyarısı */
+.weight-bar-overload {
+  animation: overloadPulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes overloadPulse {
+  from { filter: drop-shadow(0 0 2px rgba(225, 77, 87, 0.4)); }
+  to { filter: drop-shadow(0 0 8px rgba(225, 77, 87, 0.95)); }
+}
+
 /* ==================== DUYARLI (RESPONSIVE) TASARIM ==================== */
 @media (max-width: 1020px) {
   .top-hud {
@@ -1267,6 +1529,14 @@ html, body {
     display: none;
   }
   .hud-btn .btn-lbl {
+    display: none;
+  }
+  .level-bar {
+    padding: 6px 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .level-objective-pill {
     display: none;
   }
   .toast-banner {
@@ -1301,5 +1571,8 @@ html, body {
   .bank-badge {
     font-size: 0.76rem;
     padding: 4px 10px;
+  }
+  .level-tab .lvl-topic {
+    display: none;
   }
 }

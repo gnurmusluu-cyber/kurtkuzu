@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kurt, Kuzu ve Lahana — Nehir Geçişi Bulmacası</title>
+  <title>Kurt, Kuzu ve Lahana — Nehir Geçişi Algoritma Bulmacası</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -17,15 +17,15 @@
         <div class="brand-emblem" aria-hidden="true">🛶</div>
         <div class="brand-text">
           <h1>Kurt, Kuzu ve Lahana</h1>
-          <span class="subtitle">Nehir Geçişi • Algoritma ve Mantık Bulmacası</span>
+          <span id="brandSubtitle" class="subtitle">1. Seviye • Temel Koşul Yapısı (EĞER - İSE)</span>
         </div>
       </div>
 
       <div class="hud-stats">
-        <div class="stat-pill" title="Yapılan nehir geçişi sayısı (En az 7 hamlede çözülebilir)">
-          <span class="stat-label">Hamle</span>
+        <div class="stat-pill" id="moveStatPill" title="Yapılan nehir geçişi sayısı ve en kısa ideal algoritma">
+          <span class="stat-label">Adım</span>
           <span id="moveCount" class="stat-value">0</span>
-          <span class="stat-hint">/ 7 ideal</span>
+          <span id="idealHint" class="stat-hint">/ 7 ideal</span>
         </div>
         <div class="stat-pill bank-progress" title="Sağ kıyıya güvenle geçen karakter sayısı">
           <span class="stat-label">Sağ Kıyı</span>
@@ -42,15 +42,15 @@
           <span class="btn-ico">💡</span>
           <span class="btn-lbl">İpucu</span>
         </button>
-        <button id="btnAlgo" class="hud-btn hud-btn-teal" type="button" title="Koşul-Sonuç (Eğer-İse) ve Hamle Günlüğü">
+        <button id="btnAlgo" class="hud-btn hud-btn-teal" type="button" title="Aktif Koşul Kontrolü ve Algoritma Günlüğü">
           <span class="btn-ico">🧩</span>
           <span class="btn-lbl">Algoritma</span>
         </button>
-        <button id="btnRules" class="hud-btn" type="button" title="Oyun kurallarını gör">
+        <button id="btnRules" class="hud-btn" type="button" title="Seviye kurallarını gör">
           <span class="btn-ico">📖</span>
           <span class="btn-lbl">Kurallar</span>
         </button>
-        <button id="btnRestart" class="hud-btn hud-btn-rose" type="button" title="Oyunu baştan başlat">
+        <button id="btnRestart" class="hud-btn hud-btn-rose" type="button" title="Bölümü baştan başlat">
           <span class="btn-ico">🔄</span>
           <span class="btn-lbl">Yeniden</span>
         </button>
@@ -59,6 +59,31 @@
         </button>
       </div>
     </header>
+
+    <!-- 3 Aşamalı Seviye (Bölüm) Seçici Çubuğu -->
+    <nav class="level-bar" aria-label="Seviye Seçici">
+      <div class="level-tabs" role="tablist">
+        <button id="lvlTab1" class="level-tab active" type="button" role="tab" aria-selected="true" data-level="1">
+          <span class="lvl-num">1. Seviye</span>
+          <span class="lvl-topic">EĞER - İSE</span>
+          <span class="lvl-done" id="lvlDone1" hidden></span>
+        </button>
+        <button id="lvlTab2" class="level-tab" type="button" role="tab" aria-selected="false" data-level="2">
+          <span class="lvl-num">2. Seviye</span>
+          <span class="lvl-topic">BÜYÜKTÜR (&gt;)</span>
+          <span class="lvl-done" id="lvlDone2" hidden></span>
+        </button>
+        <button id="lvlTab3" class="level-tab" type="button" role="tab" aria-selected="false" data-level="3">
+          <span class="lvl-num">3. Seviye</span>
+          <span class="lvl-topic">TOPLAM ≤ LİMİT</span>
+          <span class="lvl-done" id="lvlDone3" hidden></span>
+        </button>
+      </div>
+      <div id="levelObjectivePill" class="level-objective-pill">
+        <span class="obj-ico">🎯</span>
+        <span id="levelObjectiveText">Kapasite: Çiftçi + 1 Yolcu • İdeal Algoritma: 7 Adım</span>
+      </div>
+    </nav>
 
     <!-- Ana Masalsı Oyun Sahnesi -->
     <main class="stage-wrapper">
@@ -71,10 +96,10 @@
 
         <!-- Kıyı Etiketleri -->
         <div class="bank-badge bank-badge-left">
-          <span class="badge-dot"></span> Sol Kıyı (Başlangıç)
+          <span class="badge-dot"></span> Sol Kıyı <span id="leftBankSummary" class="bank-mini-info"></span>
         </div>
         <div class="bank-badge bank-badge-right">
-          <span class="badge-dot"></span> Sağ Kıyı (Hedef)
+          <span class="badge-dot"></span> Sağ Kıyı <span id="rightBankSummary" class="bank-mini-info"></span>
         </div>
 
         <!-- Canlı Bildirim / Koşul Balonu -->
@@ -92,8 +117,11 @@
             </div>
             <div class="seat-divider"></div>
             <div class="seat-chip" id="seatPassengerChip">
-              <span class="seat-role">Yolcu (En fazla 1):</span>
+              <span id="seatPassengerRole" class="seat-role">Yolcu (En fazla 1):</span>
               <span id="seatPassengerVal" class="seat-val empty">Boş</span>
+              <div id="dockWeightBarWrap" class="dock-weight-bar" hidden>
+                <div id="dockWeightFill" class="dock-weight-fill" style="width: 0%"></div>
+              </div>
             </div>
           </div>
 
@@ -105,48 +133,29 @@
           </button>
         </div>
 
-        <!-- Açılır Algoritma ve Koşul-Sonuç (if-else) Paneli -->
+        <!-- Açılır Algoritma Günlüğü & Aktif Koşul Kontrolü Paneli -->
         <aside id="algoDrawer" class="algo-drawer" aria-hidden="true">
           <div class="drawer-header">
             <div>
-              <h2>🧩 Algoritma &amp; Koşul Paneli</h2>
-              <p>Her hamlede çalışan <code>EĞER - İSE</code> kuralları</p>
+              <h2>🧩 Algoritma Günlüğü</h2>
+              <p id="drawerSubTitle">Mantıksal operatörler (<code>VE</code> / <code>VEYA</code>) ve değişken takibi</p>
             </div>
             <button id="btnCloseAlgo" class="icon-close-btn" type="button" aria-label="Paneli kapat">✕</button>
           </div>
 
+          <!-- 9. Sınıf Özel: Aktif Koşul Kontrolü Kutusu -->
+          <div id="liveConditionBox" class="live-condition-box cond-ok">
+            <div class="live-cond-top">
+              <span class="live-cond-badge">⚡ AKTİF KOŞUL KONTROLÜ</span>
+              <span id="liveCondState" class="live-cond-state">GÜVENLİ ✓</span>
+            </div>
+            <code id="liveCondExpr" class="live-cond-expr">EĞER (Çiftçi != Kıyı) VE ((Kurt == Kuzu) VEYA (Kuzu == Lahana)) İSE → Hata</code>
+            <div id="liveCondVars" class="live-cond-vars"></div>
+          </div>
+
           <div class="drawer-section">
-            <h3>Aktif Koşul Kontrolleri</h3>
-            <ul class="rule-check-list">
-              <li id="ruleFarmer" class="rule-item rule-neutral">
-                <span class="rule-status">●</span>
-                <div>
-                  <strong>EĞER</strong> Çiftçi sandalda değilse<br />
-                  <span><strong>İSE</strong> sandal hareket edemez.</span>
-                </div>
-              </li>
-              <li id="ruleCapacity" class="rule-item rule-ok">
-                <span class="rule-status">✓</span>
-                <div>
-                  <strong>EĞER</strong> yolcu sayısı ≤ 1 ise<br />
-                  <span><strong>İSE</strong> sandal dengede kalır.</span>
-                </div>
-              </li>
-              <li id="ruleWolfSheep" class="rule-item rule-ok">
-                <span class="rule-status">✓</span>
-                <div>
-                  <strong>EĞER</strong> Çiftçi yokken Kurt + Kuzu yalnızsa<br />
-                  <span><strong>İSE</strong> Kurt kuzuyu yer!</span>
-                </div>
-              </li>
-              <li id="ruleSheepCabbage" class="rule-item rule-ok">
-                <span class="rule-status">✓</span>
-                <div>
-                  <strong>EĞER</strong> Çiftçi yokken Kuzu + Lahana yalnızsa<br />
-                  <span><strong>İSE</strong> Kuzu lahanayı yer!</span>
-                </div>
-              </li>
-            </ul>
+            <h3>Seviye Kuralları</h3>
+            <ul id="ruleCheckList" class="rule-check-list"></ul>
           </div>
 
           <div class="drawer-section drawer-log-section">
@@ -164,7 +173,7 @@
   <div id="failModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="failTitle" hidden>
     <div class="modal-card modal-fail">
       <div id="failEmoji" class="modal-badge">🐺🐑</div>
-      <h2 id="failTitle">Eyvah! Kurt Kuzuyu Yedi!</h2>
+      <h2 id="failTitle">Mantık Hatası!</h2>
       <p id="failMessage" class="modal-desc"></p>
       <div class="logic-callout">
         <span class="logic-tag">KOŞUL - SONUÇ (EĞER - İSE)</span>
@@ -177,63 +186,43 @@
     </div>
   </div>
 
-  <!-- Kazanma Kutlama Modalı -->
+  <!-- Kazanma ve Optimizasyon Kutlama Modalı -->
   <div id="winModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="winTitle" hidden>
     <div class="modal-card modal-win">
       <div class="win-stars" id="winStars" aria-label="Yıldız derecesi">⭐⭐⭐</div>
-      <h2 id="winTitle">Tebrikler! Herkesi Güvenle Geçirdin!</h2>
+      <h2 id="winTitle">Tebrikler! Seviyeyi Tamamladın!</h2>
       <p id="winMessage" class="modal-desc"></p>
       <div class="win-metrics">
         <div class="metric-box">
-          <span class="metric-lbl">Toplam Hamle</span>
-          <strong id="winMoveCount" class="metric-val">7</strong>
+          <span class="metric-lbl">Senin Algoritman</span>
+          <strong id="winMoveCount" class="metric-val">7 Adım</strong>
         </div>
         <div class="metric-box">
-          <span class="metric-lbl">En Kısa Çözüm</span>
-          <strong class="metric-val">7</strong>
+          <span class="metric-lbl">En Kısa Algoritma</span>
+          <strong id="winIdealCount" class="metric-val">7 Adım</strong>
         </div>
         <div class="metric-box">
-          <span class="metric-lbl">Seviye</span>
-          <strong id="winRank" class="metric-val">Usta!</strong>
+          <span class="metric-lbl">Verimlilik</span>
+          <strong id="winRank" class="metric-val">Optimal!</strong>
         </div>
       </div>
       <div class="modal-actions">
-        <button id="btnWinReplay" class="primary-btn btn-emerald" type="button">🎉 Tekrar Oyna</button>
-        <button id="btnWinShowAlgo" class="secondary-btn" type="button">🧩 Çözüm Adımlarımı Gör</button>
+        <button id="btnNextLevel" class="primary-btn btn-indigo" type="button">🚀 Sonraki Seviyeye Geç ➜</button>
+        <button id="btnWinReplay" class="primary-btn btn-emerald" type="button">🔄 Tekrar Dene</button>
+        <button id="btnWinShowAlgo" class="secondary-btn" type="button">🧩 Adımlarımı İncele</button>
       </div>
     </div>
   </div>
 
-  <!-- Kurallar / Nasıl Oynanır Modalı -->
+  <!-- Kurallar / Seviye Rehberi Modalı -->
   <div id="rulesModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="rulesTitle" hidden>
     <div class="modal-card modal-rules">
       <button id="btnCloseRulesTop" class="icon-close-btn modal-close-x" type="button" aria-label="Kapat">✕</button>
-      <div class="modal-badge">📖</div>
-      <h2 id="rulesTitle">Nasıl Oynanır?</h2>
-      <p class="modal-desc">
-        <strong>Amacın:</strong> Sol kıyıdaki <strong>Çiftçi, Kurt, Kuzu ve Lahanayı</strong> kuralları bozmadan sağ kıyıya geçirmek!
-      </p>
-      <ul class="rules-grid">
-        <li>
-          <span class="r-ico">🧑‍🌾</span>
-          <div><strong>Sadece Çiftçi Kürek Çeker:</strong> Çiftçi sandalda olmadan sandal karşıya geçemez.</div>
-        </li>
-        <li>
-          <span class="r-ico">🛶</span>
-          <div><strong>En Fazla 1 Yolcu:</strong> Sandala Çiftçi'nin yanında en fazla <strong>1 yolcu</strong> (Kurt, Kuzu veya Lahana) binebilir.</div>
-        </li>
-        <li>
-          <span class="r-ico">🐺🐑</span>
-          <div><strong>Kurt ile Kuzu Yalnız Kalamaz:</strong> Çiftçi o kıyıda değilse Kurt, Kuzuyu yer!</div>
-        </li>
-        <li>
-          <span class="r-ico">🐑🥬</span>
-          <div><strong>Kuzu ile Lahana Yalnız Kalamaz:</strong> Çiftçi o kıyıda değilse Kuzu, Lahanayı yer!</div>
-        </li>
-      </ul>
-      <div class="rules-tip">
-        💡 <strong>İpucu:</strong> Karakterlerin üzerine tıklayarak onları sandala bindirip indirebilir, ardından <strong>"Karşıya Geç"</strong> butonuna basabilirsin. En kısa çözüm <strong>7 hamle</strong> sürer!
-      </div>
+      <div id="rulesBadge" class="modal-badge">📖</div>
+      <h2 id="rulesTitle">1. Seviye: Temel Koşul Yapısı</h2>
+      <p id="rulesSummary" class="modal-desc"></p>
+      <ul id="rulesGrid" class="rules-grid"></ul>
+      <div id="rulesTip" class="rules-tip"></div>
       <div class="modal-actions">
         <button id="btnStartPlay" class="primary-btn btn-emerald" type="button">🚀 Haydi Başlayalım!</button>
       </div>
